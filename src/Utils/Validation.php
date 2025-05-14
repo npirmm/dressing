@@ -198,55 +198,54 @@ class Validation {
             return false;
         }
 
-        $exists = false;
-        // Si un modelInstance est fourni et qu'il a une méthode de vérification spécifique
-        if ($this->modelInstance) {
-            // Tente d'appeler une méthode comme "nameExists" ou "columnNameExists" sur le modèle
-            // Pour Brand model:
-            if ($this->modelInstance instanceof \App\Models\Brand) {
-                if ($columnName === 'name') {
-                    $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
-                } elseif ($columnName === 'abbreviation') {
-                    $exists = $this->modelInstance->abbreviationExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+            $exists = false;
+            $specificHandlerUsed = false;
+
+            if ($this->modelInstance) {
+                if ($this->modelInstance instanceof \App\Models\Brand) {
+                    if ($columnName === 'name') {
+                        $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    } elseif ($columnName === 'abbreviation') {
+                        $exists = $this->modelInstance->abbreviationExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    }
+                } elseif ($this->modelInstance instanceof \App\Models\Color) {
+                    if ($columnName === 'name') {
+                        $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    } elseif ($columnName === 'hex_code') {
+                        $exists = $this->modelInstance->hexCodeExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    }
+                } elseif ($this->modelInstance instanceof \App\Models\Material) { // <-- NOUVEAU CAS
+                    if ($columnName === 'name') {
+                        $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    }
                 }
-            } elseif ($this->modelInstance instanceof \App\Models\Color) { // Exemple pour Color model
-                if ($columnName === 'name') {
-                    $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
-                } elseif ($columnName === 'hex_code') {
-                    $exists = $this->modelInstance->hexCodeExists((string)$value, $exceptValue ? (int)$exceptValue : null);
-                }
+                // Ajoutez d'autres 'elseif' pour d'autres modèles ici...
             }
-            // Ajoutez d'autres 'elseif' pour d'autres modèles si nécessaire,
-            // ou implémentez une méthode plus générique dans un BaseMode.
-        }
-        
-        // Si pas de modelInstance ou pas de handler spécifique dans le modelInstance, utiliser le fallback générique
-        // C'est ici que l'erreur se produit (ligne 218 environ)
-        if (!$this->modelInstance || (
-            ($this->modelInstance instanceof \App\Models\Brand && !in_array($columnName, ['name', 'abbreviation'])) ||
-            ($this->modelInstance instanceof \App\Models\Color && !in_array($columnName, ['name', 'hex_code']))
-            // Ajouter d'autres conditions si les handlers spécifiques ne couvrent pas tous les cas 'unique' pour ce modèle
-        )) {
-             // L'erreur était ici, l'appel à Database::getInstance() doit utiliser le namespace complet
-             // ou avoir un "use App\Core\Database;" en haut du fichier.
-             $db = Database::getInstance(); // <--- Cette ligne (ou similaire) cause l'erreur si le 'use' manque
-             $sql = "SELECT COUNT(*) as count FROM `{$tableName}` WHERE `{$columnName}` = :value";
-             $queryParams = [':value' => $value];
-             if ($exceptValue !== null) {
-                 $sql .= " AND `{$exceptColumnIdName}` != :exceptValue";
-                 $queryParams[':exceptValue'] = $exceptValue;
-             }
-             $stmt = $db->query($sql, $queryParams);
-             $result = $stmt ? $stmt->fetch() : null;
-             $exists = $result && $result['count'] > 0;
-        }
+            
+            // Si aucun handler spécifique n'a été utilisé (ou pas de modelInstance), utiliser le fallback générique.
+            if (!$specificHandlerUsed) {
+                 $db = Database::getInstance();
+                 $sql = "SELECT COUNT(*) as count FROM `{$tableName}` WHERE `{$columnName}` = :value";
+                 $queryParams = [':value' => $value];
+                 if ($exceptValue !== null) {
+                     $sql .= " AND `{$exceptColumnIdName}` != :exceptValue";
+                     $queryParams[':exceptValue'] = $exceptValue;
+                 }
+                 $stmt = $db->query($sql, $queryParams);
+                 $result = $stmt ? $stmt->fetch() : null;
+                 $exists = $result && $result['count'] > 0;
+            }
 
-
-        if ($exists) {
-            $this->addError($field, "The {$field} '{$value}' has already been taken.");
-            return false;
-        }
-        return true;
+            if ($exists) {
+                $this->addError($field, "The {$field} '{$value}' has already been taken.");
+                return false;
+            }
+            return true;
     }
 
     // Add more validation methods as needed (numeric, alpha, date, etc.)
