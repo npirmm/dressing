@@ -3,6 +3,8 @@
 
 namespace App\Utils;
 
+use App\Core\Database;
+
 /**
  * Simple Validation Class
  */
@@ -182,40 +184,52 @@ class Validation {
      * Example: 'email' => 'unique:users,email,10,id' (for update, excluding user with id 10)
      */
     protected function validateUnique(string $field, $value, array $params): bool {
-        if (empty($value) || !$this->modelInstance) {
-            return true; // Cannot validate uniqueness without a value or model
+        if (empty($value)) { // Ne pas valider l'unicité pour les valeurs vides
+            return true;
         }
 
         $tableName = $params[0] ?? null;
-        $columnName = $params[1] ?? $field; // Default to field name if column name not provided
+        $columnName = $params[1] ?? $field;
         $exceptValue = $params[2] ?? null;
-        $exceptColumnIdName = $params[3] ?? 'id'; // Default ID column name
+        $exceptColumnIdName = $params[3] ?? 'id';
 
         if (!$tableName) {
             error_log("Validation: 'unique' rule for field '{$field}' is missing table name parameter.");
-            return false; // Or throw exception
+            return false;
         }
 
-        // This assumes the model has a generic method to check existence.
-        // You'll need to implement such a method in your BaseMode or individual models.
-        // For now, let's assume Brand model has the 'nameExists' and 'abbreviationExists'
-        // This part needs to be adapted to your model structure.
         $exists = false;
-        if ($this->modelInstance instanceof \App\Models\Brand) { // Example for Brand
-            if ($columnName === 'name') {
-                $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
-            } elseif ($columnName === 'abbreviation') {
-                $exists = $this->modelInstance->abbreviationExists((string)$value, $exceptValue ? (int)$exceptValue : null);
-            } else {
-                 error_log("Validation: 'unique' rule on Brand model for column '{$columnName}' not specifically handled.");
-                 return false; // Or make it more generic
+        // Si un modelInstance est fourni et qu'il a une méthode de vérification spécifique
+        if ($this->modelInstance) {
+            // Tente d'appeler une méthode comme "nameExists" ou "columnNameExists" sur le modèle
+            // Pour Brand model:
+            if ($this->modelInstance instanceof \App\Models\Brand) {
+                if ($columnName === 'name') {
+                    $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                } elseif ($columnName === 'abbreviation') {
+                    $exists = $this->modelInstance->abbreviationExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                }
+            } elseif ($this->modelInstance instanceof \App\Models\Color) { // Exemple pour Color model
+                if ($columnName === 'name') {
+                    $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                } elseif ($columnName === 'hex_code') {
+                    $exists = $this->modelInstance->hexCodeExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                }
             }
-        } else {
-            // Generic fallback - you would need a generic `checkUnique` method in a BaseMode or similar
-            // error_log("Validation: 'unique' rule called for a model type without specific handler: " . get_class($this->modelInstance));
-            // For now, let's assume it means the check is not implemented for this model type
-            // A better approach would be a method like $this->modelInstance->isAttributeUnique($columnName, $value, $exceptValue, $exceptColumnIdName)
-             $db = Database::getInstance();
+            // Ajoutez d'autres 'elseif' pour d'autres modèles si nécessaire,
+            // ou implémentez une méthode plus générique dans un BaseMode.
+        }
+        
+        // Si pas de modelInstance ou pas de handler spécifique dans le modelInstance, utiliser le fallback générique
+        // C'est ici que l'erreur se produit (ligne 218 environ)
+        if (!$this->modelInstance || (
+            ($this->modelInstance instanceof \App\Models\Brand && !in_array($columnName, ['name', 'abbreviation'])) ||
+            ($this->modelInstance instanceof \App\Models\Color && !in_array($columnName, ['name', 'hex_code']))
+            // Ajouter d'autres conditions si les handlers spécifiques ne couvrent pas tous les cas 'unique' pour ce modèle
+        )) {
+             // L'erreur était ici, l'appel à Database::getInstance() doit utiliser le namespace complet
+             // ou avoir un "use App\Core\Database;" en haut du fichier.
+             $db = Database::getInstance(); // <--- Cette ligne (ou similaire) cause l'erreur si le 'use' manque
              $sql = "SELECT COUNT(*) as count FROM `{$tableName}` WHERE `{$columnName}` = :value";
              $queryParams = [':value' => $value];
              if ($exceptValue !== null) {
