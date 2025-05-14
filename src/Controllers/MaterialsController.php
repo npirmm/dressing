@@ -16,10 +16,16 @@ class MaterialsController extends BaseController { // Changer BrandsController e
     }
 
     public function index(): void {
-        $materials = $this->materialModel->getAll();
-        $this->renderView('materials/index', [ // Changer brands/ en materials/
-            'pageTitle' => 'Manage Materials', // Changer Brands en Materials
-            'materials' => $materials // Changer brands en materials
+        // Récupérer les paramètres de tri depuis $_GET
+        $sortBy = $_GET['sort'] ?? 'name'; // Colonne par défaut
+        $sortOrder = $_GET['order'] ?? 'asc'; // Ordre par défaut
+
+        $materials = $this->materialModel->getAll($sortBy, $sortOrder);
+        
+        $this->renderView('materials/index', [
+            'pageTitle' => 'Manage Materials',
+            'materials' => $materials,
+            // Pas besoin de passer sortBy et sortOrder ici car la vue les lit déjà depuis $_GET
         ]);
     }
 

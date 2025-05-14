@@ -1,4 +1,34 @@
-<?php use App\Utils\Helper; ?>
+<?php
+use App\Utils\Helper;
+
+// Récupérer les paramètres de tri actuels depuis l'URL (GET)
+$currentSortColumn = $_GET['sort'] ?? 'name'; // Colonne par défaut
+$currentSortOrder = $_GET['order'] ?? 'asc';   // Ordre par défaut
+
+// Fonction pour générer les liens de tri
+function sort_link(string $column, string $displayName, string $currentSortColumn, string $currentSortOrder, string $baseUrl): string {
+    $icon = '';
+    $nextOrder = 'asc'; // Ordre par défaut si on clique sur une nouvelle colonne
+
+    if ($column === $currentSortColumn) {
+        if ($currentSortOrder === 'asc') {
+            $icon = ' <i class="bi bi-sort-alpha-down"></i>'; // Ou bi-sort-numeric-down
+            $nextOrder = 'desc';
+        } else {
+            $icon = ' <i class="bi bi-sort-alpha-up"></i>'; // Ou bi-sort-numeric-up
+            $nextOrder = 'asc';
+        }
+    }
+    // Conserver les autres paramètres GET existants (si vous en avez plus tard pour la pagination/filtre)
+    // Pour l'instant, on ne gère que sort et order
+    return '<a href="' . $baseUrl . '?sort=' . $column . '&order=' . $nextOrder . '">' . Helper::e($displayName) . $icon . '</a>';
+}
+
+$baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', $_SERVER['REQUEST_URI']), '/');
+// Enlever les anciens paramètres de tri de l'URL de base pour les reconstruire
+$baseUrl = strtok($baseUrl, '?');
+
+?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1><?php echo Helper::e($pageTitle ?? 'Materials'); ?></h1>
@@ -13,9 +43,9 @@
     <table class="table table-striped table-hover">
         <thead class="table-dark">
             <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Created At</th>
+                <th><?php echo sort_link('id', 'ID', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo sort_link('name', 'Name', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo sort_link('created_at', 'Created At', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
                 <th>Actions</th>
             </tr>
         </thead>

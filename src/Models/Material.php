@@ -14,8 +14,29 @@ class Material {
         $this->dbInstance = Database::getInstance();
     }
 
-    public function getAll(): array {
-        $stmt = $this->dbInstance->query("SELECT * FROM {$this->tableName} ORDER BY name ASC");
+    /**
+     * Fetches all materials with sorting options.
+     * @param string $sortBy The column to sort by.
+     * @param string $sortOrder The order of sorting ('ASC' or 'DESC').
+     * @return array An array of all materials.
+     */
+    public function getAll(string $sortBy = 'name', string $sortOrder = 'ASC'): array {
+        // Liste blanche des colonnes autorisées pour le tri pour éviter l'injection SQL
+        $allowedSortColumns = ['id', 'name', 'created_at'];
+        if (!in_array(strtolower($sortBy), $allowedSortColumns)) {
+            $sortBy = 'name'; // Colonne de tri par défaut si non autorisée
+        }
+
+        // S'assurer que sortOrder est soit ASC soit DESC
+        $sortOrder = strtoupper($sortOrder);
+        if ($sortOrder !== 'ASC' && $sortOrder !== 'DESC') {
+            $sortOrder = 'ASC'; // Ordre par défaut
+        }
+
+        // La colonne est mise directement dans la requête, d'où l'importance de la liste blanche.
+        $sql = "SELECT * FROM {$this->tableName} ORDER BY `{$sortBy}` {$sortOrder}";
+        
+        $stmt = $this->dbInstance->query($sql); // Pas de paramètres à binder ici pour ORDER BY
         return $stmt ? $stmt->fetchAll() : [];
     }
 
