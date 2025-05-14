@@ -9,6 +9,8 @@ class ImageUploader {
     private int $maxFileSize = 5 * 1024 * 1024; // 5 MB
     private ?string $uploadedFileName = null;
     private array $errors = [];
+    private string $deletedPrefix = 'DELETED_'; // Préfixe pour les fichiers "supprimés"
+	
 
     public function __construct(string $subDirectory = 'articles/') {
         // Chemin vers la racine du projet (où se trouvent src, html, config, etc.)
@@ -113,20 +115,60 @@ class ImageUploader {
         return $this->errors;
     }
 
+    /**
+     * "Deletes" a file by renaming it with a DELETED_ prefix.
+     * If a file with the DELETED_ prefix already exists, it might be overwritten or suffixed.
+     * For simplicity, this version overwrites if DELETED_filename already exists.
+     *
+     * @param string|null $fileName The original name of the file to "delete".
+     * @return bool True if renaming was successful or file didn't exist, false on failure.
+     */
     public function deleteFile(?string $fileName): bool {
         if (empty($fileName)) {
-            return false;
+            return true; // No file to "delete"
+        }
+
+        $originalFilePath = $this->targetDir . $fileName;
+        $deletedFilePath = $this->targetDir . $this->deletedPrefix . $fileName;
+
+        if (file_exists($originalFilePath)) {
+            // Optionnel : Gérer le cas où $deletedFilePath existe déjà
+            // Par exemple, en ajoutant un timestamp ou un compteur au nom du fichier DELETED_
+            // if (file_exists($deletedFilePath)) {
+            //     $deletedFilePath = $this->targetDir . $this->deletedPrefix . pathinfo($fileName, PATHINFO_FILENAME) . '_' . time() . '.' . pathinfo($fileName, PATHINFO_EXTENSION);
+            // }
+
+            if (rename($originalFilePath, $deletedFilePath)) {
+                return true;
+            } else {
+                $this->errors[] = "Could not rename file for deletion: {$fileName}. Check permissions.";
+                error_log("ImageUploader Error: Could not rename file {$originalFilePath} to {$deletedFilePath}");
+                return false;
+            }
+        }
+        return true; // File doesn't exist, so considered "deleted"
+    }
+
+    /**
+     * Physically deletes a file. Use with caution.
+     * Useful if you want to permanently remove a "DELETED_" file or any other file.
+     * @param string|null $fileName
+     * @return bool
+     */
+    public function permanentlyDeleteFile(?string $fileName): bool {
+        if (empty($fileName)) {
+            return true;
         }
         $filePath = $this->targetDir . $fileName;
         if (file_exists($filePath)) {
             if (unlink($filePath)) {
                 return true;
             } else {
-                $this->errors[] = "Could not delete file: {$fileName}. Check permissions.";
-                error_log("ImageUploader Error: Could not delete file {$filePath}");
+                $this->errors[] = "Could not permanently delete file: {$fileName}. Check permissions.";
+                error_log("ImageUploader Error: Could not permanently delete file {$filePath}");
                 return false;
             }
         }
-        return true; // File doesn't exist, so considered "deleted"
+        return true; // File doesn't exist
     }
 }

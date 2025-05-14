@@ -77,11 +77,14 @@ class Color {
     }
 
     public function update(int $id, array $data, ?string $oldImageFilename = null): bool {
+        // $oldImageFilename est le nom de l'image qui était associée à la couleur AVANT cette mise à jour.
+        // $data['image_filename'] est le nom de la NOUVELLE image (ou null si on la supprime).
+
         $sql = "UPDATE {$this->tableName} SET 
                 name = :name, 
                 hex_code = :hex_code, 
                 base_color_category = :base_color_category, 
-                image_filename = :image_filename, 
+                image_filename = :image_filename,  
                 updated_at = NOW() 
                 WHERE id = :id";
         
@@ -90,17 +93,24 @@ class Color {
             ':name' => $data['name'],
             ':hex_code' => empty($data['hex_code']) ? null : $data['hex_code'],
             ':base_color_category' => empty($data['base_color_category']) ? null : $data['base_color_category'],
-            ':image_filename' => $data['image_filename'] ?? null // This will be the new filename if uploaded
+            ':image_filename' => $data['image_filename'] ?? null // Correct: $data['image_filename'] sera NULL si 'remove_image' est cochée
         ];
 
         $stmt = $this->dbInstance->query($sql, $params);
 
         if ($stmt) {
             Helper::logAction(strtoupper($this->tableName).'_UPDATE', ucfirst($this->tableName), $id, "Color '{$data['name']}' (ID: {$id}) updated.");
-            // If image filename has changed and old one existed, delete old image file
-            if (isset($data['image_filename']) && $data['image_filename'] !== $oldImageFilename && !empty($oldImageFilename)) {
-                $uploader = new ImageUploader(constant($this->imagePathConstant));
-                $uploader->deleteFile($oldImageFilename);
+
+            if (!empty($oldImageFilename) && 
+                ( (isset($data['image_filename']) && $data['image_filename'] !== $oldImageFilename) || !isset($data['image_filename']) || is_null($data['image_filename']) )
+            ) {
+                // Assurez-vous que COLOR_IMAGE_PATH est bien défini et accessible
+                if (defined('COLOR_IMAGE_PATH')) {
+                    $uploader = new ImageUploader(COLOR_IMAGE_PATH);
+                    $uploader->deleteFile($oldImageFilename);
+                } else {
+                    error_log("COLOR_IMAGE_PATH constant not defined in ColorModel::update()");
+                }
             }
             return true;
         }

@@ -60,24 +60,24 @@ class ColorsController extends BaseController {
     public function edit(int $id): void { $this->form($id); }
 
 
-    // --- Méthode utilitaire pour générer le nom de fichier ---
-    private function generateImageFilename(string $hexCode, string $colorName): string {
-        // 1. Préparer le code HEX: enlever le #, mettre en majuscules
-        $hexPart = strtoupper(str_replace('#', '', trim($hexCode)));
-        if (empty($hexPart)) {
-            $hexPart = 'NOHEX'; // Fallback si le hex est vide, bien que vous ayez dit qu'il sera toujours fourni
+     // --- Méthode utilitaire pour générer le nom de fichier ---
+    private function generateImageFilename(?string $hexCode, string $colorName): string {
+        $hexPart = 'NOHEX'; // Défaut si pas de code HEX
+        if (!empty($hexCode)) {
+            // Enlever le # et mettre en minuscules pour le nom de fichier
+            $hexPart = strtolower(str_replace('#', '', trim($hexCode)));
         }
 
-        // 2. Préparer le nom de la couleur: minuscules, remplacer espaces et caractères spéciaux par underscore
         $namePart = strtolower(trim($colorName));
-        $namePart = preg_replace('/\s+/', '_', $namePart); // Remplace les espaces par _
-        $namePart = preg_replace('/[^a-z0-9_]/', '', $namePart); // Garde seulement alphanumériques et underscore
-        $namePart = trim($namePart, '_'); // Enlève les underscores en début/fin
+        $namePart = preg_replace('/\s+/', '_', $namePart);
+        $namePart = preg_replace('/[^a-z0-9_]/', '', $namePart);
+        $namePart = trim($namePart, '_');
         if (empty($namePart)) {
-            $namePart = 'color'; // Fallback
+            $namePart = 'color';
         }
         
-        return "HEX{$hexPart}_{$namePart}"; // L'extension sera ajoutée par ImageUploader
+        // Ajout du timestamp pour l'unicité
+        return "HEX{$hexPart}_{$namePart}_" . time();
     }
 
 
@@ -89,34 +89,38 @@ class ColorsController extends BaseController {
             $inputName = trim($_POST['name'] ?? '');
 
             $validator = new Validation($_POST, $this->colorModel);
-            // ... (définition des rules, inchangée) ...
-            $validator->setRules([
+            $rules = [
                 'name' => 'required|max:50|unique:colors,name',
-                'hex_code' => 'required|regex:/^#?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/|unique:colors,hex_code',
+                // Regex: # optionnel, suivi de 6 chiffres hexa. La validation unique sera ajoutée si hex_code n'est pas vide.
+                'hex_code' => 'regex:/^#?[a-fA-F0-9]{6}$/', 
                 'base_color_category' => 'max:30',
-            ], [ /* ... messages custom ... */ ]);
+            ];
+
+            // Unicité du hex_code seulement s'il est fourni
+            if (!empty($inputHexCode)) {
+                $rules['hex_code'] .= '|unique:colors,hex_code';
+            }
+
+            $validator->setRules($rules, [
+                'name.required' => 'The color name is required.',
+                'name.unique' => 'This color name is already taken.',
+                'hex_code.regex' => 'The Hex code must be 6 hexadecimal characters, optionally starting with # (e.g., #RRGGBB or RRGGBB).',
+                'hex_code.unique' => 'This Hex code is already in use by another color.'
+            ]);
 
             $newImageFilename = null;
             $uploadSuccess = true;
             $uploader = new ImageUploader($this->imageUploadPath);
 
             if (isset($_FILES['image_filename']) && $_FILES['image_filename']['error'] !== UPLOAD_ERR_NO_FILE) {
-                if (!empty($inputHexCode) && !empty($inputName) && preg_match('/^#?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/', $inputHexCode) ) {
+                // Le nom de la couleur est requis pour nommer l'image, donc on vérifie $inputName.
+                // $inputHexCode est optionnel pour le nommage de l'image (utilisera NOHEX).
+                if (!empty($inputName)) {
+                    // On passe $inputHexCode (qui peut être vide) à generateImageFilename
+                    $desiredFilenameWithoutExtension = $this->generateImageFilename($inputHexCode, $inputName);
                     
-                    $baseDesiredFilename = $this->generateImageFilename($inputHexCode, $inputName);
-                    $fileExtension = strtolower(pathinfo($_FILES['image_filename']['name'], PATHINFO_EXTENSION));
-                    
-                    $finalFilenameWithoutExtension = $baseDesiredFilename;
-                    $counter = 1;
-                    // Boucle pour trouver un nom de fichier unique
-                    while (file_exists($uploader->getTargetDir() . $finalFilenameWithoutExtension . '.' . $fileExtension)) {
-                        $finalFilenameWithoutExtension = $baseDesiredFilename . '_' . $counter;
-                        $counter++;
-                    }
-                    // Le nom de fichier final (sans extension) est $finalFilenameWithoutExtension
-
-                    if ($uploader->upload($_FILES['image_filename'], $finalFilenameWithoutExtension)) { // Passe le nom sans extension
-                        $newImageFilename = $uploader->getUploadedFileName(); // Récupère le nom complet avec extension
+                    if ($uploader->upload($_FILES['image_filename'], $desiredFilenameWithoutExtension)) {
+                        $newImageFilename = $uploader->getUploadedFileName();
                     } else {
                         $uploadSuccess = false;
                         foreach ($uploader->getErrors() as $error) {
@@ -126,15 +130,22 @@ class ColorsController extends BaseController {
                 } else {
                     $uploadSuccess = false;
                     if (empty($_SESSION['form_errors']['image_filename'])) {
-                        $_SESSION['form_errors']['image_filename'][] = 'Hex code and Name are required to name the image file correctly.';
+                        $_SESSION['form_errors']['image_filename'][] = 'Color Name is required to name the image file.';
                     }
+                     // Si $inputName est vide, la validation du champ 'name' (required) devrait aussi échouer.
                 }
             }
 
             if ($validator->validate() && $uploadSuccess) {
+                $finalHexCode = null;
+                if (!empty($inputHexCode)) {
+                    // S'assurer que le # est présent pour le stockage en BDD si un hex est fourni
+                    $finalHexCode = (strpos($inputHexCode, '#') === 0 ? $inputHexCode : '#' . $inputHexCode);
+                }
+
                 $dataToCreate = [
                     'name' => $inputName,
-                    'hex_code' => (strpos($inputHexCode, '#') === 0 ? $inputHexCode : '#' . $inputHexCode), // Assurer le #
+                    'hex_code' => $finalHexCode,
                     'base_color_category' => !empty(trim($_POST['base_color_category'])) ? trim($_POST['base_color_category']) : null,
                     'image_filename' => $newImageFilename
                 ];
@@ -153,9 +164,9 @@ class ColorsController extends BaseController {
                 if (empty($_SESSION['form_errors'])) $_SESSION['form_errors'] = $validator->getErrors();
                 else $_SESSION['form_errors'] = array_merge_recursive($_SESSION['form_errors'] ?? [], $validator->getErrors());
                 
-                if ($newImageFilename && $uploadSuccess) { // Si upload a réussi mais validation a échoué
+                if ($newImageFilename && $uploadSuccess) {
                     $uploader->deleteFile($newImageFilename);
-                } // Si upload a échoué ($uploadSuccess est false), $newImageFilename est null ou l'image n'a pas été déplacée.
+                }
                 Helper::redirect('colors/create');
             }
         } else {
@@ -167,15 +178,27 @@ class ColorsController extends BaseController {
     public function update(int $id): void {
         $this->verifyCsrf();
         $color = $this->colorModel->findById($id);
-        // ... (vérification si couleur existe) ...
+        if (!$color) {
+            Helper::redirect('colors', ['danger' => "Color with ID {$id} not found."]);
+            return;
+        }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $inputHexCode = trim($_POST['hex_code'] ?? '');
             $inputName = trim($_POST['name'] ?? '');
 
             $validator = new Validation($_POST, $this->colorModel);
-            // ... (définition des rules, inchangée) ...
-            $validator->setRules([ /* ... */ ]);
+            $rules = [
+                'name' => 'required|max:50|unique:colors,name,'.$id.',id',
+                'hex_code' => 'regex:/^#?[a-fA-F0-9]{6}$/', // 6 chiffres hexa, # optionnel
+                'base_color_category' => 'max:30',
+            ];
+            if (!empty($inputHexCode)) {
+                 $rules['hex_code'] .= '|unique:colors,hex_code,'.$id.',id';
+            }
+            $validator->setRules($rules, [ /* ... messages custom ... */
+                'hex_code.regex' => 'If provided, Hex code must be 6 hexadecimal characters, optionally starting with #.',
+             ]);
 
 
             $newImageFilename = $color['image_filename'];
@@ -184,38 +207,17 @@ class ColorsController extends BaseController {
             $uploader = new ImageUploader($this->imageUploadPath);
 
             if (isset($_FILES['image_filename']) && $_FILES['image_filename']['error'] !== UPLOAD_ERR_NO_FILE) {
-                if (!empty($inputHexCode) && !empty($inputName) && preg_match('/^#?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/', $inputHexCode) ) {
+                if (!empty($inputName)) { // Nom requis pour le nommage de l'image
+                    $desiredFilenameWithoutExtension = $this->generateImageFilename($inputHexCode, $inputName);
                     
-                    $baseDesiredFilename = $this->generateImageFilename($inputHexCode, $inputName);
-                    $fileExtension = strtolower(pathinfo($_FILES['image_filename']['name'], PATHINFO_EXTENSION));
-                    
-                    $finalFilenameWithoutExtension = $baseDesiredFilename;
-                    $counter = 1;
-                    // Boucle pour trouver un nom de fichier unique, en s'assurant de ne pas entrer en conflit
-                    // avec l'image existante de cette couleur si elle n'est pas renommée.
-                    // (Cette logique est plus complexe si le nom généré est le même que l'ancien)
-                    // Simplification: si on upload une nouvelle image, on génère un nom potentiellement nouveau.
-                    // Si le nom généré + extension existe et n'est pas l'image actuelle, on suffixe.
-
-                    $currentFullImageName = $color['image_filename'];
-                    
-                    while (file_exists($uploader->getTargetDir() . $finalFilenameWithoutExtension . '.' . $fileExtension) &&
-                           ($finalFilenameWithoutExtension . '.' . $fileExtension) !== $currentFullImageName) {
-                        $finalFilenameWithoutExtension = $baseDesiredFilename . '_' . $counter;
-                        $counter++;
-                    }
-
-                    if ($uploader->upload($_FILES['image_filename'], $finalFilenameWithoutExtension)) {
+                    if ($uploader->upload($_FILES['image_filename'], $desiredFilenameWithoutExtension)) {
                         $uploadedFile = $uploader->getUploadedFileName();
-                        // Si le nom du fichier uploadé (après potentielle suffixation) est différent de l'ancien nom stocké
                         if ($uploadedFile !== $color['image_filename']) {
                             $newImageFilename = $uploadedFile;
                             if (!empty($color['image_filename'])) {
                                 $oldImageToDeleteOnSuccess = $color['image_filename'];
                             }
                         }
-                        // Si le nom est le même, $newImageFilename reste l'ancien, $oldImageToDeleteOnSuccess reste null.
-                        // Cela couvre le cas où on ré-uploade la même image avec le même nom.
                     } else {
                         $uploadSuccess = false;
                         foreach ($uploader->getErrors() as $error) {
@@ -225,7 +227,7 @@ class ColorsController extends BaseController {
                 } else {
                     $uploadSuccess = false;
                     if (empty($_SESSION['form_errors']['image_filename'])) {
-                        $_SESSION['form_errors']['image_filename'][] = 'Hex code and Name are required to name the new image file correctly.';
+                        $_SESSION['form_errors']['image_filename'][] = 'Color Name is required to name the new image file.';
                     }
                 }
             } elseif (isset($_POST['remove_image']) && $_POST['remove_image'] == '1' && !empty($color['image_filename'])) {
@@ -235,15 +237,21 @@ class ColorsController extends BaseController {
 
 
             if ($validator->validate() && $uploadSuccess) {
+                $finalHexCode = null;
+                if (!empty($inputHexCode)) {
+                    $finalHexCode = (strpos($inputHexCode, '#') === 0 ? $inputHexCode : '#' . $inputHexCode);
+                }
+
                 $dataToUpdate = [
                     'name' => $inputName,
-                    'hex_code' => (strpos($inputHexCode, '#') === 0 ? $inputHexCode : '#' . $inputHexCode),
+                    'hex_code' => $finalHexCode,
                     'base_color_category' => !empty(trim($_POST['base_color_category'])) ? trim($_POST['base_color_category']) : null,
                     'image_filename' => $newImageFilename
                 ];
                 
+                // Vérifier s'il y a réellement des changements
                 $noChanges = ($dataToUpdate['name'] === $color['name'] &&
-                             $dataToUpdate['hex_code'] === $color['hex_code'] &&
+                             $dataToUpdate['hex_code'] === $color['hex_code'] && // $color['hex_code'] est déjà normalisé ou NULL
                              $dataToUpdate['base_color_category'] === $color['base_color_category'] &&
                              $dataToUpdate['image_filename'] === $color['image_filename']);
 
@@ -256,7 +264,6 @@ class ColorsController extends BaseController {
                     Helper::redirect('colors', ['success' => 'Color updated successfully!']);
                 } else {
                     $_SESSION['form_data'] = $_POST;
-                    // Si la BDD échoue, et qu'on avait uploadé une nouvelle image qui n'est pas l'ancienne
                     if ($newImageFilename !== $color['image_filename'] && $newImageFilename !== null) {
                         $uploader->deleteFile($newImageFilename);
                     }
@@ -267,7 +274,6 @@ class ColorsController extends BaseController {
                 if (empty($_SESSION['form_errors'])) $_SESSION['form_errors'] = $validator->getErrors();
                 else $_SESSION['form_errors'] = array_merge_recursive($_SESSION['form_errors'] ?? [], $validator->getErrors());
                 
-                // Si la validation échoue, et qu'on avait uploadé une nouvelle image qui n'est pas l'ancienne
                 if ($newImageFilename !== $color['image_filename'] && $newImageFilename !== null && $uploadSuccess) {
                      $uploader->deleteFile($newImageFilename);
                 }

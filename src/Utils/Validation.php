@@ -141,6 +141,45 @@ class Validation {
         }
     }
 
+    /**
+     * Validates a field against a regular expression.
+     * Rule: regex:/your_pattern/modifiers
+     * Example: 'zip_code' => 'regex:/^[0-9]{5}$/'
+     * @param string $field The field name.
+     * @param mixed $value The value of the field.
+     * @param array $params Array containing the regex pattern as the first element.
+     * @return bool True if validation passes, false otherwise.
+     */
+    protected function validateRegex(string $field, $value, array $params): bool {
+        if (empty($value)) { // Don't validate empty values with regex unless 'required' is also used
+            return true;
+        }
+        if (empty($params[0])) {
+            error_log("Validation: Regex pattern not provided for field '{$field}'.");
+            return false; // Or throw an exception
+        }
+        $pattern = $params[0];
+        // Check if the pattern is correctly delimited (e.g. /pattern/i)
+        // Basic check, could be more robust
+        if ( ($pattern[0] !== $pattern[strlen($pattern)-1] && !preg_match('/^[a-zA-Z0-9]/', substr($pattern, -1))) || 
+             ($pattern[0] === $pattern[strlen($pattern)-1] && strlen($pattern) < 2)
+           ) {
+            // Simple delimiter check, assuming common delimiters like / # ~ |
+            // If not properly delimited, wrap it with / /
+            // This is a simple fix; ideally, the pattern should always be passed correctly delimited.
+             if (strpos($pattern, '/') === false && strpos($pattern, '#') === false && strpos($pattern, '~') === false) {
+                 $pattern = '/' . $pattern . '/';
+             }
+        }
+
+
+        if (!preg_match($pattern, (string)$value)) {
+            $this->addError($field, "The {$field} format is invalid.");
+            return false;
+        }
+        return true;
+    }
+
     // --- Validation Rule Methods ---
 
     protected function validateRequired(string $field, $value, array $params): bool {
