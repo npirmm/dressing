@@ -1,0 +1,38 @@
+mkdir -p html/assets/css
+mkdir -p html/assets/js
+mkdir -p html/assets/media/articles
+mkdir -p html/assets/media/events
+mkdir -p html/assets/media/colors
+
+# --- Application Source Code (Outside DocumentRoot) ---
+mkdir -p src/Core
+mkdir -p src/Controllers
+mkdir -p src/Models
+mkdir -p src/Views/layouts
+mkdir -p src/Views/auth
+mkdir -p src/Views/user
+mkdir -p src/Views/emails
+mkdir -p src/Views/brands
+mkdir -p src/Views/articles
+# Add view directories for other entities as needed later, e.g.:
+mkdir -p src/Views/colors
+mkdir -p src/Views/materials
+mkdir -p src/Views/categories_types
+mkdir -p src/Views/statuses
+mkdir -p src/Views/event_types
+mkdir -p src/Views/storage_locations
+mkdir -p src/Views/suppliers
+mkdir -p src/Views/item_users
+# ---
+mkdir -p src/Views/dashboard
+mkdir -p src/Utils
+
+# --- Configuration ---
+mkdir -p config
+
+# --- Storage (Logs, etc.) ---
+# Ensure this directory is writable by the web server if logs are written here by PHP.
+mkdir -p storage/logs
+
+# --- Vendor (Composer - usually created by Composer, but good to have placeholder) ---
+# mkdir -p vendor # Optional: Composer will create this anyway

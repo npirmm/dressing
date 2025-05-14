@@ -1,0 +1,17 @@
+{
+    "name": "npirmm/dressing-manager",
+    "description": "Application to manage a large wardrobe.",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "phpmailer/phpmailer": "^6.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

@@ -1,0 +1,72 @@
+/ (racine du serveur ou vhost)
+└── html/ ou htdocs/ ou www/ (DocumentRoot de votre serveur web)
+    ├── index.php             # Point d'entrée principal de l'application
+    ├── .htaccess             # (Optionnel, pour Apache: réécriture d'URL, sécurité)
+    └── assets/
+        ├── css/
+        │   └── style.css     # Vos styles CSS personnalisés
+        ├── js/
+        │   └── script.js     # Votre JavaScript personnalisé
+        └── media/
+            ├── articles/     # Stockage des images des articles
+            ├── events/       # Stockage des images des événements
+            └── colors/       # Stockage des images des couleurs (si applicable)
+    └── vendor/               # Géré par Composer (contient autoload.php, PHPMailer, etc.)
+
+/ (en dehors du DocumentRoot, pour la sécurité)
+├── src/
+│   ├── Core/
+│   │   └── Database.php
+│   ├── Controllers/
+│   │   ├── AuthController.php
+│   │   ├── PasswordController.php
+│   │   ├── UserController.php
+│   │   ├── BrandsController.php     
+│   │   ├── ArticleController.php    # (À venir)
+│   │   └── DashboardController.php  # (À venir)
+│   │   └── BaseController.php       # (Optionnel, pour logique commune aux contrôleurs)
+│   ├── Models/
+│   │   ├── User.php
+│   │   ├── RememberToken.php
+│   │   ├── EmailVerification.php
+│   │   ├── PasswordReset.php
+│   │   ├── Brand.php                
+│   │   ├── Article.php              # (À venir)
+│   │   ├── CategoryType.php         # (À venir)
+│   │   ├── Color.php                # (À venir)
+│   │   ├── Material.php             # (À venir)
+│   │   ├── StorageLocation.php      # (À venir)
+│   │   ├── Status.php               # (À venir)
+│   │   ├── HistoryLog.php           # (À venir)
+│   │   └── ActionLog.php            # (Pour la journalisation)
+│   ├── Views/
+│   │   ├── layouts/
+│   │   │   ├── main.php             # Template principal (header, footer, nav)
+│   │   │   └── alerts.php           # (Optionnel, pour afficher les messages flash)
+│   │   ├── auth/                    # (Pour plus tard)
+│   │   ├── user/                    # (Pour plus tard)
+│   │   ├── emails/                  # (Pour plus tard)
+│   │   ├── brands/                  # Vues pour la gestion des marques
+│   │   │   ├── index.php
+│   │   │   ├── form.php
+│   │   │   └── show.php             # (Optionnel, si affichage détail)
+│   │   ├── articles/                # (À venir)
+│   │   └── dashboard/               # (À venir)
+│   │       └── index.php
+│   ├── Utils/
+│   │   ├── Auth.php
+│   │   ├── Mailer.php
+│   │   ├── Security.php
+│   │   ├── Helper.php               # Fonctions utilitaires générales
+│   │   ├── Logger.php               # Pour la journalisation des actions
+│   │   └── ImageUploader.php        # (À venir, pour gérer les uploads d'images)
+├── config/
+│   ├── app.php
+│   ├── database.php
+│   └── mail.php
+├── storage/
+│   └── logs/
+│       └── app_errors.log
+│       └── mail_log.txt             # (Si PHPMailer est configuré pour logger)
+└── composer.json
+└── composer.lock
