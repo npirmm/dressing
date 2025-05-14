@@ -61,7 +61,7 @@ class Color {
         
         $params = [
             ':name' => $data['name'],
-            ':hex_code' => empty($data['hex_code']) ? null : $data['hex_code'],
+            ':hex_code' => empty($data['hex_code']) ? null : strtoupper($data['hex_code']),
             ':base_color_category' => empty($data['base_color_category']) ? null : $data['base_color_category'],
             ':image_filename' => $data['image_filename'] ?? null
         ];
@@ -91,7 +91,7 @@ class Color {
         $params = [
             ':id' => $id,
             ':name' => $data['name'],
-            ':hex_code' => empty($data['hex_code']) ? null : $data['hex_code'],
+            ':hex_code' => empty($data['hex_code']) ? null : strtoupper($data['hex_code']),
             ':base_color_category' => empty($data['base_color_category']) ? null : $data['base_color_category'],
             ':image_filename' => $data['image_filename'] ?? null // Correct: $data['image_filename'] sera NULL si 'remove_image' est cochée
         ];

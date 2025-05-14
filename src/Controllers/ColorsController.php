@@ -65,7 +65,7 @@ class ColorsController extends BaseController {
         $hexPart = 'NOHEX'; // Défaut si pas de code HEX
         if (!empty($hexCode)) {
             // Enlever le # et mettre en minuscules pour le nom de fichier
-            $hexPart = strtolower(str_replace('#', '', trim($hexCode)));
+            $hexPart = strtoupper(str_replace('#', '', trim($hexCode)));
         }
 
         $namePart = strtolower(trim($colorName));
@@ -77,7 +77,7 @@ class ColorsController extends BaseController {
         }
         
         // Ajout du timestamp pour l'unicité
-        return "HEX{$hexPart}_{$namePart}_" . time();
+        return "hex{$hexPart}_{$namePart}_" . time();
     }
 
 
