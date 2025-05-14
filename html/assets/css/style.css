@@ -1,0 +1,45 @@
+/* Styles pour les en-têtes de colonnes triables */
+#materialsTable thead th a, /* Cible le lien dans l'en-tête */
+#colorsTable thead th a, /* Ajoutez d'autres ID de tables si nécessaire */
+#brandsTable thead th a { /* Exemple pour la table des marques */
+    color: white; /* Texte de l'en-tête en blanc (si thead.table-dark est utilisé) */
+    text-decoration: none; /* Enlever le soulignement par défaut des liens */
+    display: inline-flex; /* Pour aligner le texte et l'icône sur la même ligne */
+    align-items: center; /* Centrer verticalement le texte et l'icône */
+}
+
+#materialsTable thead th a:hover,
+#colorsTable thead th a:hover,
+#brandsTable thead th a:hover {
+    color: #cccccc; /* Légère variation de couleur au survol */
+    /* text-decoration: underline; // Si vous voulez un soulignement au survol */
+}
+
+/* Conteneur de l'icône pour gérer l'espacement et la largeur fixe */
+.sort-icon-wrapper {
+    display: inline-block; /* Permet de donner une largeur */
+    width: 1.5em;          /* Réserver une largeur fixe pour l'icône. Ajustez au besoin. */
+    text-align: center;    /* Centrer l'icône dans son conteneur si elle est plus petite */
+    margin-left: 0.3em;    /* Petit espace entre le texte et l'icône */
+    transition: color 0.2s ease-in-out; /* Transition douce pour le changement de couleur */
+}
+
+/* Icône inactive (grise) */
+.sort-icon-wrapper.inactive-sort-icon i {
+    color: #888888; /* Gris pour l'icône inactive */
+    opacity: 0.6; /* La rendre un peu transparente */
+}
+
+/* Icône active (bleue) */
+.sort-icon-wrapper.active-sort-icon i {
+    color: #ffffff; /* #0d6efd Bleu Bootstrap par défaut, ou votre couleur primaire */
+    opacity: 1;
+}
+
+/* Optionnel: changer l'apparence de l'icône inactive au survol du lien */
+#materialsTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
+#colorsTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
+#brandsTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i {
+    color: #bbbbbb; /* Gris plus clair au survol */
+    opacity: 0.8;
+}
