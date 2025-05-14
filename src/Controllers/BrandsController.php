@@ -5,11 +5,13 @@ namespace App\Controllers;
 
 use App\Models\Brand;
 use App\Utils\Helper;
+use App\Utils\Validation;
 
 class BrandsController extends BaseController {
     private Brand $brandModel;
 
     public function __construct() {
+    //    parent::__construct();
         $this->brandModel = new Brand();
         // Basic auth check placeholder - to be expanded later
         // if (!Auth::check()) { // Assuming Auth::check() exists
@@ -74,95 +76,98 @@ class BrandsController extends BaseController {
      * Stores a new brand in the database.
      * Route: POST /brands/store (or simply /brands if using HTTP verbs in router)
      */
-public function store(): void {
-    $this->verifyCsrf();
+    public function store(): void {
+        $this->verifyCsrf();
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $name = trim($_POST['name'] ?? '');
-        $abbreviationInput = trim($_POST['abbreviation'] ?? '');
-        // Conserver NULL si l'input est vide, sinon la chaîne.
-        // Cela dépend si votre DB et votre logique abbreviationExists() attendent NULL ou '' pour "pas d'abréviation".
-        // Si abbreviationExists() gère bien les chaînes vides, alors:
-        $abbreviation = !empty($abbreviationInput) ? $abbreviationInput : null;
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $validator = new Validation($_POST, $this->brandModel); // Passez le modèle pour les règles 'unique'
+            $validator->setRules([
+                'name' => 'required|min:3|max:100|unique:brands,name', // unique:table,column
+                'abbreviation' => 'max:20|unique:brands,abbreviation' // unique si non vide
+            ], [
+                'name.required' => 'The brand name is absolutely required!', // Custom message example
+                'name.unique' => 'This brand name is already taken, sorry.'
+            ]);
 
+            if ($validator->validate()) {
+                // $validatedData = $validator->validatedData(); // Get validated data (not strictly needed if using $_POST directly)
+                // Ajustement pour abbreviation, pour passer null si vide
+                $dataToCreate = [
+                    'name' => $_POST['name'], // ou $validatedData['name']
+                    'abbreviation' => !empty(trim($_POST['abbreviation'])) ? trim($_POST['abbreviation']) : null
+                ];
 
-        if (empty($name)) {
-            $_SESSION['form_data'] = $_POST;
-            Helper::redirect('brands/create', ['danger' => 'Brand name cannot be empty.']);
-            return;
-        }
+                $brandId = $this->brandModel->create($dataToCreate);
 
-        $brandIdOrError = $this->brandModel->create($name, $abbreviation);
-
-        if ($brandIdOrError === -1) { // Duplicate name
-            $_SESSION['form_data'] = $_POST;
-            Helper::redirect('brands/create', ['danger' => "The brand '{$name}' already exists."]);
-        } elseif ($brandIdOrError === -2) { // Duplicate abbreviation
-            $_SESSION['form_data'] = $_POST;
-            Helper::redirect('brands/create', ['danger' => "The abbreviation '{$abbreviation}' is already in use."]);
-        } elseif ($brandIdOrError && $brandIdOrError > 0) { // Success
-            unset($_SESSION['form_data']);
-            Helper::redirect('brands', ['success' => 'Brand created successfully!']);
-        } else { // General failure
-            $_SESSION['form_data'] = $_POST;
-            Helper::redirect('brands/create', ['danger' => 'Failed to create brand. Please try again.']);
-        }
-    } else {
-        Helper::redirect('brands/create'); // Or show error
+                if ($brandId) {
+                    Helper::redirect('brands', ['success' => 'Brand created successfully!']);
+                } else {
+                    // Erreur générale de la BDD, improbable si la validation est passée
+                    $_SESSION['form_data'] = $_POST;
+                    Helper::redirect('brands/create', ['danger' => 'Failed to create brand due to a database error.']);
+                }
+            } else {
+                // Validation failed
+                $_SESSION['form_data'] = $_POST; // Pour réafficher les données
+                $_SESSION['form_errors'] = $validator->getErrors(); // Stocker les erreurs
+                Helper::redirect('brands/create'); // Rediriger vers le formulaire
+            }
+        } else {
+            Helper::redirect('brands/create');
         }
     }
 
-    /**
-     * Updates an existing brand in the database.
-     * Route: POST /brands/update/{id}
-     */
     public function update(int $id): void {
-        $this->verifyCsrf(); // Check CSRF token
+        $this->verifyCsrf();
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $name = trim($_POST['name'] ?? '');
-        $abbreviationInput = trim($_POST['abbreviation'] ?? '');
-        $abbreviation = !empty($abbreviationInput) ? $abbreviationInput : null;
-        
         $brand = $this->brandModel->findById($id);
         if (!$brand) {
             Helper::redirect('brands', ['danger' => "Brand with ID {$id} not found for update."]);
             return;
         }
 
-        if (empty($name)) {
-            $_SESSION['form_data'] = $_POST;
-            Helper::redirect('brands/edit/' . $id, ['danger' => 'Brand name cannot be empty.']);
-            return;
-        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $validator = new Validation($_POST, $this->brandModel);
+            $validator->setRules([
+                // Pour unique en update, on exclut l'ID actuel: unique:table,column,exceptValue,idColumnName
+                'name' => 'required|min:3|max:100|unique:brands,name,'.$id.',id',
+                'abbreviation' => 'max:20|unique:brands,abbreviation,'.$id.',id'
+            ]);
 
-        $success = $this->brandModel->update($id, $name, $abbreviation);
+            if ($validator->validate()) {
+                $dataToUpdate = [
+                    'name' => $_POST['name'],
+                    'abbreviation' => !empty(trim($_POST['abbreviation'])) ? trim($_POST['abbreviation']) : null
+                ];
 
-        if ($success) {
-            unset($_SESSION['form_data']);
-            Helper::redirect('brands', ['success' => 'Brand updated successfully!']);
-        } else {
-            $_SESSION['form_data'] = $_POST;
-            $errorMessage = 'Failed to update brand. Please try again.'; // Default error
-
-            if (isset($_SESSION['validation_error_type'])) {
-                if ($_SESSION['validation_error_type'] === 'duplicate_name') {
-                    $errorMessage = "Another brand with the name '{$name}' already exists.";
-                } elseif ($_SESSION['validation_error_type'] === 'duplicate_abbreviation') {
-                    $errorMessage = "The abbreviation '{$abbreviation}' is already in use by another brand.";
+                // Vérifier si des changements ont réellement été faits
+                if ($dataToUpdate['name'] === $brand['name'] && $dataToUpdate['abbreviation'] === $brand['abbreviation']) {
+                    Helper::redirect('brands/edit/' . $id, ['info' => 'No changes were made to the brand.']);
+                    return;
                 }
-                unset($_SESSION['validation_error_type']);
+
+                if ($this->brandModel->update($id, $dataToUpdate)) {
+                    Helper::redirect('brands', ['success' => 'Brand updated successfully!']);
+                } else {
+                    $_SESSION['form_data'] = $_POST;
+                    Helper::redirect('brands/edit/' . $id, ['danger' => 'Failed to update brand due to a database error.']);
+                }
             } else {
-                 $currentBrand = $this->brandModel->findById($id);
-                if ($currentBrand && $currentBrand['name'] === $name && $currentBrand['abbreviation'] === ($abbreviation ?? $currentBrand['abbreviation']) ) { // Check if really no changes
-                     Helper::redirect('brands/edit/' . $id, ['info' => 'No changes were made to the brand.']);
-                     return; // Important to exit here
-                }
+                // Validation failed
+                $_SESSION['form_data'] = $_POST;
+                $_SESSION['form_errors'] = $validator->getErrors();
+                Helper::redirect('brands/edit/' . $id);
             }
-            Helper::redirect('brands/edit/' . $id, ['danger' => $errorMessage]);
-        }
-    } else {
-        Helper::redirect('brands/edit/' . $id);
+        } else {
+            // GET request pour la page d'édition, on passe les données existantes
+            // Cette partie n'est pas directement pour la soumission POST, mais pour l'affichage initial du form
+            // Assurez-vous que le form.php charge bien les données $brand passées par la méthode edit()
+             $this->renderView('brands/form', [
+                'pageTitle' => 'Edit Brand: ' . Helper::e($brand['name']),
+                'brand' => $brand,
+                'formAction' => APP_URL . '/brands/update/' . $id,
+                'csrfToken' => $_SESSION[CSRF_TOKEN_NAME]
+            ]);
         }
     }
 
