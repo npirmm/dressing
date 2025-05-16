@@ -16,10 +16,20 @@ class Color {
         $this->dbInstance = Database::getInstance();
     }
 
-    public function getAll(): array {
-        $stmt = $this->dbInstance->query("SELECT * FROM {$this->tableName} ORDER BY name ASC");
+    public function getAll(string $sortBy = 'name', string $sortOrder = 'ASC'): array {
+        $allowedSortColumns = ['id', 'name', 'hex_code', 'base_color_category', 'created_at'];
+        if (!in_array(strtolower($sortBy), $allowedSortColumns)) {
+            $sortBy = 'name';
+        }
+        $sortOrder = strtoupper($sortOrder);
+        if ($sortOrder !== 'ASC' && $sortOrder !== 'DESC') {
+            $sortOrder = 'ASC';
+        }
+        $sql = "SELECT * FROM {$this->tableName} ORDER BY `{$sortBy}` {$sortOrder}";
+        $stmt = $this->dbInstance->query($sql);
         return $stmt ? $stmt->fetchAll() : [];
     }
+
 
     public function findById(int $id): array|false {
         $stmt = $this->dbInstance->query("SELECT * FROM {$this->tableName} WHERE id = :id", [':id' => $id]);

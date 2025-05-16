@@ -24,11 +24,14 @@ class ColorsController extends BaseController {
     }
 
     public function index(): void {
-        $colors = $this->colorModel->getAll();
+        $sortBy = $_GET['sort'] ?? 'name';
+        $sortOrder = $_GET['order'] ?? 'asc';
+        $colors = $this->colorModel->getAll($sortBy, $sortOrder); // Passer les options de tri
+        
         $this->renderView('colors/index', [
             'pageTitle' => 'Manage Colors',
             'colors' => $colors,
-            'imagePath' => APP_URL . '/assets/media/' . $this->imageUploadPath // For display
+            'imagePath' => APP_URL . '/assets/media/' . $this->imageUploadPath
         ]);
     }
 

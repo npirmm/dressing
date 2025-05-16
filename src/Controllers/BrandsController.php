@@ -24,7 +24,9 @@ class BrandsController extends BaseController {
      * Route: /brands or /brands/index
      */
     public function index(): void {
-        $brands = $this->brandModel->getAll();
+        $sortBy = $_GET['sort'] ?? 'name';
+        $sortOrder = $_GET['order'] ?? 'asc';
+        $brands = $this->brandModel->getAll($sortBy, $sortOrder);
         $this->renderView('brands/index', [
             'pageTitle' => 'Manage Brands',
             'brands' => $brands
