@@ -262,6 +262,14 @@ class Validation {
                         $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
                         $specificHandlerUsed = true;
                     }
+                } elseif ($this->modelInstance instanceof \App\Models\CategoryType) { // <-- AJOUTER
+                    if ($columnName === 'name') {
+                        $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    } elseif ($columnName === 'code') {
+                        $exists = $this->modelInstance->codeExists(strtoupper((string)$value), $exceptValue ? (int)$exceptValue : null); // Valider le code en majuscules
+                        $specificHandlerUsed = true;
+                    }
                 }
                 // Ajoutez d'autres 'elseif' pour d'autres modèles ici...
             }
@@ -287,6 +295,15 @@ class Validation {
             return true;
     }
 
+    protected function validateAlphaNumDash(string $field, $value, array $params): bool {
+        if (!empty($value) && !preg_match('/^[a-zA-Z0-9_-]+$/', (string)$value)) {
+            // Le message d'erreur est déjà géré par addError si un message custom est fourni.
+            // Sinon, un message générique peut être défini ici, ou dans les messages custom par défaut.
+            $this->addError($field, "The {$field} field may only contain letters, numbers, dashes, and underscores.");
+            return false;
+        }
+        return true;
+    }
     // Add more validation methods as needed (numeric, alpha, date, etc.)
 }
 

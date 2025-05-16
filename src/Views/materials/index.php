@@ -5,41 +5,7 @@ use App\Utils\Helper;
 $currentSortColumn = $_GET['sort'] ?? 'name'; // Colonne par défaut
 $currentSortOrder = $_GET['order'] ?? 'asc';   // Ordre par défaut
 
-// Fonction pour générer les liens de tri
-function sort_link(string $column, string $displayName, string $currentSortColumn, string $currentSortOrder, string $baseUrl): string {
-    $nextOrder = 'asc';
-    $iconClass = 'bi-arrow-down-up'; // Icône par défaut pour "triable mais non actif"
-    $isActiveSort = false;
-
-    if ($column === $currentSortColumn) {
-        $isActiveSort = true;
-        if ($currentSortOrder === 'asc') {
-            $iconClass = 'bi-sort-alpha-down'; // Ou bi-sort-numeric-down, bi-sort-down pour générique date/nombre
-            $nextOrder = 'desc';
-        } else {
-            $iconClass = 'bi-sort-alpha-up'; // Ou bi-sort-numeric-up, bi-sort-up
-            $nextOrder = 'asc';
-        }
-    }
-
-    // Construire le HTML pour l'icône
-    // On ajoute une classe 'active-sort-icon' si c'est la colonne de tri actuelle
-    $iconHtml = ' <span class="sort-icon-wrapper ' . ($isActiveSort ? 'active-sort-icon' : 'inactive-sort-icon') . '">';
-    $iconHtml .= '<i class="bi ' . $iconClass . '"></i>';
-    $iconHtml .= '</span>';
-
-    // Le lien
-    $link = '<a href="' . $baseUrl . '?sort=' . $column . '&order=' . $nextOrder . '">';
-    $link .= Helper::e($displayName); // Le nom de la colonne
-    $link .= $iconHtml; // L'icône est maintenant APRES le nom
-    $link .= '</a>';
-
-    return $link;
-}
-
-$baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', $_SERVER['REQUEST_URI']), '/');
-// Enlever les anciens paramètres de tri de l'URL de base pour les reconstruire
-$baseUrl = strtok($baseUrl, '?');
+$baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', strtok($_SERVER['REQUEST_URI'], '?')), '/');
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -68,9 +34,9 @@ $baseUrl = strtok($baseUrl, '?');
 		<table class="table table-striped table-hover" id="materialsTable">
 			<thead class="table-dark">
 				<tr>
-					<th><?php echo sort_link('id', 'ID', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-					<th><?php echo sort_link('name', 'Name', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-					<th><?php echo sort_link('created_at', 'Created At', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+					<th><?php echo Helper::generateSortLink('id', 'ID', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+					<th><?php echo Helper::generateSortLink('name', 'Name', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+					<th><?php echo Helper::generateSortLink('created_at', 'Created At', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
 					<th>Actions</th>
 				</tr>
 			</thead>

@@ -114,4 +114,36 @@ class Helper {
             // Do not let logging failure break the main application flow
         }
     }
+    public static function generateSortLink(string $column, string $displayName, string $currentSortColumn, string $currentSortOrder, string $baseUrl, string $idPrefix = ''): string {
+        $nextOrder = 'asc';
+        // Déterminer l'icône en fonction du type de données (approximatif)
+        $sortIconType = 'alpha'; // défaut
+        if (in_array($column, ['id', 'count', 'quantity', 'weight_grams', 'purchase_price'])) { // Ajoutez d'autres colonnes numériques
+            $sortIconType = 'numeric';
+        } elseif (in_array($column, ['created_at', 'updated_at', 'purchase_date', 'last_worn_at'])) { // Dates
+            $sortIconType = 'down'; // Icône de date/temps générique
+        }
+
+        $iconClass = 'bi-arrow-down-up'; // Icône par défaut
+        $isActiveSort = false;
+
+        if ($column === $currentSortColumn) {
+            $isActiveSort = true;
+            if ($currentSortOrder === 'asc') {
+                $iconClass = 'bi-sort-' . $sortIconType . '-down';
+                $nextOrder = 'desc';
+            } else {
+                $iconClass = 'bi-sort-' . $sortIconType . '-up';
+                $nextOrder = 'asc';
+            }
+        }
+        $iconHtml = ' <span class="sort-icon-wrapper ' . ($isActiveSort ? 'active-sort-icon' : 'inactive-sort-icon') . '">';
+        $iconHtml .= '<i class="bi ' . $iconClass . '"></i>';
+        $iconHtml .= '</span>';
+        $link = '<a href="' . $baseUrl . '?sort=' . $column . '&order=' . $nextOrder . '">';
+        $link .= self::e($displayName); // Utiliser Helper::e()
+        $link .= $iconHtml;
+        $link .= '</a>';
+        return $link;
+    }
 }

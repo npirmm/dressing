@@ -28,6 +28,11 @@ class Brand {
         return $stmt ? $stmt->fetchAll() : [];
     }
 
+    public function findById(int $id): array|false {
+        $stmt = $this->dbInstance->query("SELECT * FROM {$this->tableName} WHERE id = :id", [':id' => $id]);
+        return $stmt ? $stmt->fetch() : false;
+    }
+	
     /**
      * Checks if a brand name exists, optionally excluding an ID.
      * Used by the Validation class.

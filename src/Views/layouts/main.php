@@ -35,12 +35,12 @@ use App\Utils\Helper;
                             <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/brands">Brands</a></li>
                             <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/colors">Colors</a></li>
                             <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/materials">Materials</a></li>
-                            <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/categories_types">Categories/Types</a></li>
+                            <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/categorytypes">Categories/Types</a></li>
                             <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/statuses">Statuses</a></li>
-                            <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/event_types">Event Types</a></li>
-                            <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/storage_locations">Storage Locations</a></li>
+                            <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/eventtypes">Event Types</a></li>
+                            <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/storagelocations">Storage Locations</a></li>
                             <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/suppliers">Suppliers</a></li>
-                            <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/item_users">Item Users</a></li>
+                            <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/itemusers">Item Users</a></li>
                         </ul>
                     </li>
                     <!-- User auth links will go here later -->

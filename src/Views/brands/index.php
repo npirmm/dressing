@@ -5,33 +5,6 @@ use App\Utils\Helper;
 $currentSortColumn = $_GET['sort'] ?? 'name'; // Colonne par défaut pour les marques
 $currentSortOrder = $_GET['order'] ?? 'asc';
 
-function sort_link_brands(string $column, string $displayName, string $currentSortColumn, string $currentSortOrder, string $baseUrl): string {
-    // Renommer la fonction pour éviter les conflits si vous incluez plusieurs vues ou un helper
-    // Ou mettre cette fonction dans un fichier helper et l'appeler
-    $nextOrder = 'asc';
-    $iconClass = 'bi-arrow-down-up';
-    $isActiveSort = false;
-
-    if ($column === $currentSortColumn) {
-        $isActiveSort = true;
-        if ($currentSortOrder === 'asc') {
-            $iconClass = ($column === 'id' ? 'bi-sort-numeric-down' : 'bi-sort-alpha-down');
-            $nextOrder = 'desc';
-        } else {
-            $iconClass = ($column === 'id' ? 'bi-sort-numeric-up' : 'bi-sort-alpha-up');
-            $nextOrder = 'asc';
-        }
-    }
-    $iconHtml = ' <span class="sort-icon-wrapper ' . ($isActiveSort ? 'active-sort-icon' : 'inactive-sort-icon') . '">';
-    $iconHtml .= '<i class="bi ' . $iconClass . '"></i>';
-    $iconHtml .= '</span>';
-    $link = '<a href="' . $baseUrl . '?sort=' . $column . '&order=' . $nextOrder . '">';
-    $link .= Helper::e($displayName);
-    $link .= $iconHtml;
-    $link .= '</a>';
-    return $link;
-}
-
 $baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', $_SERVER['REQUEST_URI']), '/');
 $baseUrl = strtok($baseUrl, '?');
 // --- Fin logique de tri ---
@@ -66,10 +39,10 @@ $baseUrl = strtok($baseUrl, '?');
     <table class="table table-striped table-hover" id="brandsTable"> <!-- ID unique pour la table -->
         <thead class="table-dark">
             <tr>
-                <th><?php echo sort_link_brands('id', 'ID', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-                <th><?php echo sort_link_brands('name', 'Name', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-                <th><?php echo sort_link_brands('abbreviation', 'Abbreviation', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-                <th><?php echo sort_link_brands('created_at', 'Created At', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('id', 'ID', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('name', 'Name', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('abbreviation', 'Abbreviation', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('created_at', 'Created At', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
                 <th>Actions</th>
             </tr>
         </thead>

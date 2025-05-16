@@ -1,7 +1,8 @@
 /* Styles pour les en-têtes de colonnes triables */
 #materialsTable thead th a, /* Cible le lien dans l'en-tête */
 #colorsTable thead th a, /* Ajoutez d'autres ID de tables si nécessaire */
-#brandsTable thead th a { /* Exemple pour la table des marques */
+#brandsTable thead th a,
+#categoryTypesTable thead th a { /* Exemple pour la table des marques */ 
     color: white; /* Texte de l'en-tête en blanc (si thead.table-dark est utilisé) */
     text-decoration: none; /* Enlever le soulignement par défaut des liens */
     display: inline-flex; /* Pour aligner le texte et l'icône sur la même ligne */
@@ -10,7 +11,8 @@
 
 #materialsTable thead th a:hover,
 #colorsTable thead th a:hover,
-#brandsTable thead th a:hover {
+#brandsTable thead th a:hover,
+#categoryTypesTable thead th a:hover {
     color: #cccccc; /* Légère variation de couleur au survol */
     /* text-decoration: underline; // Si vous voulez un soulignement au survol */
 }
@@ -39,7 +41,8 @@
 /* Optionnel: changer l'apparence de l'icône inactive au survol du lien */
 #materialsTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
 #colorsTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
-#brandsTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i {
+#brandsTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
+#categoryTypesTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i  {
     color: #bbbbbb; /* Gris plus clair au survol */
     opacity: 0.8;
 }

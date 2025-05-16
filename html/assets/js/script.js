@@ -126,6 +126,53 @@ document.addEventListener('DOMContentLoaded', function () {
         console.warn('Table #colorsTable not found!');
     }
 
+    // --- Filtre pour CategoryTypes ---
+    const ctNameSearch = document.getElementById('ctNameSearch');
+    const ctCategorySearch = document.getElementById('ctCategorySearch');
+    const ctCodeSearch = document.getElementById('ctCodeSearch');
+    const categoryTypesTable = document.getElementById('categoryTypesTable');
+
+    function filterCategoryTypesTable() {
+        if (!categoryTypesTable) return;
+        const nameTerm = ctNameSearch ? ctNameSearch.value.toLowerCase() : '';
+        const catTerm = ctCategorySearch ? ctCategorySearch.value.toLowerCase() : '';
+        const codeTerm = ctCodeSearch ? ctCodeSearch.value.toLowerCase() : '';
+        const tbody = categoryTypesTable.getElementsByTagName('tbody')[0];
+        if (!tbody) return;
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const nameCell = rows[i].getElementsByTagName('td')[1]; // Name
+            const catCell = rows[i].getElementsByTagName('td')[2];  // Category
+            const codeCell = rows[i].getElementsByTagName('td')[3]; // Code
+            
+            let nameMatch = true;
+            let catMatch = true;
+            let codeMatch = true;
+
+            if (nameTerm && nameCell) {
+                nameMatch = (nameCell.textContent || nameCell.innerText || "").trim().toLowerCase().indexOf(nameTerm) > -1;
+            }
+            if (catTerm && catCell) {
+                catMatch = (catCell.textContent || catCell.innerText || "").trim().toLowerCase().indexOf(catTerm) > -1;
+            }
+            if (codeTerm && codeCell) {
+                codeMatch = (codeCell.textContent || codeCell.innerText || "").trim().toLowerCase().indexOf(codeTerm) > -1;
+            }
+            rows[i].style.display = (nameMatch && catMatch && codeMatch) ? '' : 'none';
+        }
+    }
+    if (categoryTypesTable) {
+        if (ctNameSearch) ctNameSearch.addEventListener('keyup', filterCategoryTypesTable);
+        else console.warn('#ctNameSearch not found');
+        if (ctCategorySearch) ctCategorySearch.addEventListener('keyup', filterCategoryTypesTable);
+        else console.warn('#ctCategorySearch not found');
+        if (ctCodeSearch) ctCodeSearch.addEventListener('keyup', filterCategoryTypesTable);
+        else console.warn('#ctCodeSearch not found');
+    } else {
+        console.warn('#categoryTypesTable not found');
+    }
+	
 });
 
     // Si vous voulez ajouter des filtres pour d'autres colonnes, dupliquez la logique
