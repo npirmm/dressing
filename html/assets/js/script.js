@@ -172,7 +172,48 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
         console.warn('#categoryTypesTable not found');
     }
-	
+
+    // --- Filtre pour EventTypes ---
+    const etNameSearch = document.getElementById('etNameSearch');
+    const etDescriptionSearch = document.getElementById('etDescriptionSearch');
+    // Le filtre sur day_moments_names est plus complexe car c'est une chaîne concaténée
+    // Pour l'instant, on filtre sur nom et description.
+    const eventTypesTable = document.getElementById('eventTypesTable');
+
+    function filterEventTypesTable() {
+        if (!eventTypesTable) return;
+        const nameTerm = etNameSearch ? etNameSearch.value.toLowerCase() : '';
+        const descTerm = etDescriptionSearch ? etDescriptionSearch.value.toLowerCase() : '';
+        const tbody = eventTypesTable.getElementsByTagName('tbody')[0];
+        if (!tbody) return;
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const nameCell = rows[i].getElementsByTagName('td')[1]; // Name
+            const descCell = rows[i].getElementsByTagName('td')[2];  // Description
+            // const momentsCell = rows[i].getElementsByTagName('td')[3]; // Day Moments (plus complexe à filtrer)
+            
+            let nameMatch = true;
+            let descMatch = true;
+
+            if (nameTerm && nameCell) {
+                nameMatch = (nameCell.textContent || nameCell.innerText || "").trim().toLowerCase().indexOf(nameTerm) > -1;
+            }
+            if (descTerm && descCell) {
+                descMatch = (descCell.textContent || descCell.innerText || "").trim().toLowerCase().indexOf(descTerm) > -1;
+            }
+            rows[i].style.display = (nameMatch && descMatch) ? '' : 'none';
+        }
+    }
+    if (eventTypesTable) {
+        if (etNameSearch) etNameSearch.addEventListener('keyup', filterEventTypesTable);
+        else console.warn('#etNameSearch not found');
+        if (etDescriptionSearch) etDescriptionSearch.addEventListener('keyup', filterEventTypesTable);
+        else console.warn('#etDescriptionSearch not found');
+    } else {
+        console.warn('#eventTypesTable not found');
+    }
+
 });
 
     // Si vous voulez ajouter des filtres pour d'autres colonnes, dupliquez la logique

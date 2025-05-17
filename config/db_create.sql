@@ -279,3 +279,35 @@ INSERT INTO `storage_locations` (`room`, `area`, `shelf_or_rack`) VALUES ('Chamb
 -- history_log: Remplace votre table historique. event_images est gérée par event_log_images.
 -- full_location_path dans storage_locations: Colonne générée pour faciliter l'affichage du chemin complet.
 -- action_logs: Pour tracer toutes les actions importantes. user_id fait référence à la table users.
+
+
+ALTER TABLE `event_types`
+ADD COLUMN `description` TEXT NULL DEFAULT NULL COMMENT 'Detailed description of the event type' AFTER `name`;
+
+-- 2. Supprimer l'ancienne colonne 'typical_day_moments' si elle existe et si vous êtes sûr
+-- ATTENTION: Sauvegardez les données de cette colonne si vous voulez les migrer manuellement.
+-- ALTER TABLE `event_types` DROP COLUMN `typical_day_moments`; -- Exécutez si vous êtes prêt
+
+-- 3. Créer la table 'day_moments'
+CREATE TABLE `day_moments` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(50) NOT NULL UNIQUE,
+  `sort_order` TINYINT UNSIGNED DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. Insérer les moments de la journée prédéfinis
+INSERT INTO `day_moments` (`name`, `sort_order`) VALUES
+('matin', 10),
+('midi', 20),
+('après-midi', 30),
+('soir', 40),
+('nuit', 50);
+
+-- 5. Créer la table de liaison 'event_type_day_moment'
+CREATE TABLE `event_type_day_moment` (
+  `event_type_id` INT UNSIGNED NOT NULL,
+  `day_moment_id` INT UNSIGNED NOT NULL,
+  PRIMARY KEY (`event_type_id`, `day_moment_id`),
+  FOREIGN KEY (`event_type_id`) REFERENCES `event_types`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`day_moment_id`) REFERENCES `day_moments`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

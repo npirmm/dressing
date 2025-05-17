@@ -270,6 +270,11 @@ class Validation {
                         $exists = $this->modelInstance->codeExists(strtoupper((string)$value), $exceptValue ? (int)$exceptValue : null); // Valider le code en majuscules
                         $specificHandlerUsed = true;
                     }
+                } elseif ($this->modelInstance instanceof \App\Models\EventType) { // <-- AJOUTER
+                    if ($columnName === 'name') {
+                        $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    }
                 }
                 // Ajoutez d'autres 'elseif' pour d'autres modèles ici...
             }
@@ -304,6 +309,27 @@ class Validation {
         }
         return true;
     }
+	
+	protected function validateIn(string $field, $value, array $params): bool {
+        if (!empty($value) && !in_array((string)$value, $params)) {
+            $this->addError($field, "The selected {$field} is invalid. Allowed values are: " . implode(', ', $params));
+            return false;
+        }
+        return true;
+    }
+
+    protected function validateArray(string $field, $value, array $params): bool {
+        // Si le champ n'est pas présent dans les données (ex: aucune checkbox cochée),
+        // et qu'il n'est pas 'required', alors c'est valide.
+        // Si 'required' est utilisé, il doit y avoir au moins un élément si c'est un tableau.
+        // Cette règle vérifie juste que si $value est défini, c'est un tableau.
+        if (isset($this->data[$field]) && !is_array($this->data[$field])) {
+            $this->addError($field, "The {$field} field must be a collection of items.");
+            return false;
+        }
+        return true;
+    }
+
     // Add more validation methods as needed (numeric, alpha, date, etc.)
 }
 
