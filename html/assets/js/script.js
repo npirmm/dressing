@@ -214,6 +214,45 @@ document.addEventListener('DOMContentLoaded', function () {
         console.warn('#eventTypesTable not found');
     }
 
+    // --- Filtre pour ItemUsers ---
+    const iuNameSearch = document.getElementById('iuNameSearch');
+    const iuAbbreviationSearch = document.getElementById('iuAbbreviationSearch');
+    const itemUsersTable = document.getElementById('itemUsersTable');
+
+    function filterItemUsersTable() {
+        if (!itemUsersTable) return;
+        const nameTerm = iuNameSearch ? iuNameSearch.value.toLowerCase() : '';
+        const abbrTerm = iuAbbreviationSearch ? iuAbbreviationSearch.value.toLowerCase() : '';
+        const tbody = itemUsersTable.getElementsByTagName('tbody')[0];
+        if (!tbody) return;
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const nameCell = rows[i].getElementsByTagName('td')[1]; // Name
+            const abbrCell = rows[i].getElementsByTagName('td')[2];  // Abbreviation
+            
+            let nameMatch = true;
+            let abbrMatch = true;
+
+            if (nameTerm && nameCell) {
+                nameMatch = (nameCell.textContent || nameCell.innerText || "").trim().toLowerCase().indexOf(nameTerm) > -1;
+            }
+            if (abbrTerm && abbrCell) {
+                abbrMatch = (abbrCell.textContent || abbrCell.innerText || "").trim().toLowerCase().indexOf(abbrTerm) > -1;
+            }
+            rows[i].style.display = (nameMatch && abbrMatch) ? '' : 'none';
+        }
+    }
+    if (itemUsersTable) {
+        if (iuNameSearch) iuNameSearch.addEventListener('keyup', filterItemUsersTable);
+        else console.warn('#iuNameSearch not found for itemUsersTable');
+        if (iuAbbreviationSearch) iuAbbreviationSearch.addEventListener('keyup', filterItemUsersTable);
+        else console.warn('#iuAbbreviationSearch not found for itemUsersTable');
+    } else {
+        // Log only if at least one search input for this table was found
+        if (iuNameSearch || iuAbbreviationSearch) console.warn('#itemUsersTable not found');
+    }
+
 });
 
     // Si vous voulez ajouter des filtres pour d'autres colonnes, dupliquez la logique
