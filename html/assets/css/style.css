@@ -58,3 +58,27 @@
     color: #bbbbbb; /* Gris plus clair au survol */
     opacity: 0.8;
 }
+
+select option[style*="background-color"] {
+    padding: 5px;
+}
+
+.color-swatch-option {
+    display: inline-block;
+    width: 1em; /* ou 12px, 14px etc. */
+    height: 1em;
+    border: 1px solid #ccc;
+    margin-right: 6px;
+    vertical-align: middle; /* Aligne bien le carré avec le texte */
+    border-radius: 3px; /* Optionnel, pour des coins arrondis */
+}
+
+/* Style pour le select lui-même si une option avec couleur est sélectionnée
+   Ceci est plus difficile à faire de manière fiable avec un select natif.
+   Les bibliothèques JS comme TomSelect sont meilleures pour cela.
+   Mais on peut essayer de styler l'option sélectionnée si le navigateur le permet un peu.
+*/
+select option:checked {
+    /* Certains navigateurs pourraient appliquer un style ici, d'autres non */
+    /* Par exemple, pour le texte de l'option sélectionnée affichée dans le select fermé */
+}

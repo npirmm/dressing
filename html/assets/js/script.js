@@ -364,6 +364,109 @@ document.addEventListener('DOMContentLoaded', function () {
         if (slRoomSearch) console.warn('#storageLocationsTable not found but search fields exist');
     }
 
+    // --- Filtre pour Articles ---
+    const articleNameSearch = document.getElementById('articleNameSearch');
+    const articleCategorySearch = document.getElementById('articleCategorySearch');
+    const articleBrandSearch = document.getElementById('articleBrandSearch');
+    const articleStatusSearch = document.getElementById('articleStatusSearch');
+    const articlesTable = document.getElementById('articlesTable');
+
+    function filterArticlesTable() {
+        if (!articlesTable) return;
+        const nameTerm = articleNameSearch ? articleNameSearch.value.toLowerCase() : '';
+        const catTerm = articleCategorySearch ? articleCategorySearch.value.toLowerCase() : '';
+        const brandTerm = articleBrandSearch ? articleBrandSearch.value.toLowerCase() : '';
+        const statusTerm = articleStatusSearch ? articleStatusSearch.value.toLowerCase() : '';
+
+        const tbody = articlesTable.getElementsByTagName('tbody')[0];
+        if (!tbody) return;
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const refCell = rows[i].getElementsByTagName('td')[1];      // Ref
+            const nameCell = rows[i].getElementsByTagName('td')[2];     // Name
+            const catCell = rows[i].getElementsByTagName('td')[3];      // Category
+            const brandCell = rows[i].getElementsByTagName('td')[4];    // Brand
+            const statusCell = rows[i].getElementsByTagName('td')[7];   // Status
+            
+            let match = true;
+
+            // Combine Name and Ref for the first search field
+            let nameRefContent = "";
+            if (nameCell) nameRefContent += (nameCell.textContent || nameCell.innerText || "").trim().toLowerCase();
+            if (refCell) nameRefContent += " " + (refCell.textContent || refCell.innerText || "").trim().toLowerCase();
+            if (nameTerm && nameRefContent.indexOf(nameTerm) === -1) match = false;
+            
+            if (match && catTerm && catCell) {
+                if ((catCell.textContent || catCell.innerText || "").trim().toLowerCase().indexOf(catTerm) === -1) match = false;
+            }
+            if (match && brandTerm && brandCell) {
+                if ((brandCell.textContent || brandCell.innerText || "").trim().toLowerCase().indexOf(brandTerm) === -1) match = false;
+            }
+            if (match && statusTerm && statusCell) {
+                if ((statusCell.textContent || statusCell.innerText || "").trim().toLowerCase().indexOf(statusTerm) === -1) match = false;
+            }
+            
+            rows[i].style.display = match ? '' : 'none';
+        }
+    }
+    if (articlesTable) {
+        if (articleNameSearch) articleNameSearch.addEventListener('keyup', filterArticlesTable);
+        if (articleCategorySearch) articleCategorySearch.addEventListener('keyup', filterArticlesTable);
+        if (articleBrandSearch) articleBrandSearch.addEventListener('keyup', filterArticlesTable);
+        if (articleStatusSearch) articleStatusSearch.addEventListener('keyup', filterArticlesTable);
+    } else {
+        if (articleNameSearch) console.warn('#articlesTable not found but search fields exist');
+    }
+
+    // --- Filtre pour Statuses ---
+    const statusNameSearch = document.getElementById('statusNameSearch');
+    const statusAvailSearch = document.getElementById('statusAvailSearch');
+    const statusDescSearch = document.getElementById('statusDescSearch');
+    const statusesTable = document.getElementById('statusesTable');
+
+    function filterStatusesTable() {
+        if (!statusesTable) return;
+        const nameTerm = statusNameSearch ? statusNameSearch.value.toLowerCase() : '';
+        const availTerm = statusAvailSearch ? statusAvailSearch.value.toLowerCase().replace(' ', '_') : ''; // Gérer underscore pour enum
+        const descTerm = statusDescSearch ? statusDescSearch.value.toLowerCase() : '';
+        
+        const tbody = statusesTable.getElementsByTagName('tbody')[0];
+        if (!tbody) return;
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const nameCell = rows[i].getElementsByTagName('td')[1];  // Name
+            const availCell = rows[i].getElementsByTagName('td')[2]; // Availability
+            const descCell = rows[i].getElementsByTagName('td')[3];  // Description
+            
+            let nameMatch = true, availMatch = true, descMatch = true;
+
+            if (nameTerm && nameCell) nameMatch = (nameCell.textContent || nameCell.innerText || "").trim().toLowerCase().indexOf(nameTerm) > -1;
+            if (availTerm && availCell) {
+                // Pour la colonne availability, on compare avec la valeur brute (avec underscore)
+                // ou on pourrait transformer le texte affiché en minuscule et remplacer ' ' par '_'
+                let cellText = (availCell.textContent || availCell.innerText || "").trim().toLowerCase();
+                // Si l'affichage est "In Stock", le texte de la cellule sera "in stock".
+                // Si la recherche est "in_stock", on la transforme pour la comparaison.
+                availMatch = cellText.indexOf(availTerm.replace('_', ' ')) > -1;
+            }
+            if (descTerm && descCell) descMatch = (descCell.textContent || descCell.innerText || "").trim().toLowerCase().indexOf(descTerm) > -1;
+            
+            rows[i].style.display = (nameMatch && availMatch && descMatch) ? '' : 'none';
+        }
+    }
+    if (statusesTable) {
+        if (statusNameSearch) statusNameSearch.addEventListener('keyup', filterStatusesTable);
+        else console.warn('#statusNameSearch not found');
+        if (statusAvailSearch) statusAvailSearch.addEventListener('keyup', filterStatusesTable);
+        else console.warn('#statusAvailSearch not found');
+        if (statusDescSearch) statusDescSearch.addEventListener('keyup', filterStatusesTable);
+        else console.warn('#statusDescSearch not found');
+    } else {
+        if (statusNameSearch) console.warn('#statusesTable not found but search fields exist');
+    }
+
 });
 
     // Si vous voulez ajouter des filtres pour d'autres colonnes, dupliquez la logique

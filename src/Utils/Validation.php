@@ -308,6 +308,11 @@ class Validation {
                         $exists = $this->modelInstance->fullPathExists($locationData, $exceptValue ? (int)$exceptValue : null);
                         $specificHandlerUsed = true;
                     }
+                } elseif ($this->modelInstance instanceof \App\Models\Status) { // <-- AJOUTER CE BLOC
+                    if ($columnName === 'name') {
+                        $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    }
                 }
 				
                 // Ajoutez d'autres 'elseif' pour d'autres modèles ici...
