@@ -5,6 +5,7 @@ namespace App\Models;
 
 use App\Core\Database;
 use App\Utils\Helper;
+// use PDO; // <-- Importer la classe PDO si vous utilisez beaucoup de constantes PDO dans un fichier
 
 class StorageLocation {
     private Database $dbInstance;
@@ -43,28 +44,41 @@ class StorageLocation {
         return $stmt ? $stmt->fetch() : false;
     }
 
-    // Optionnel: Vérifier si un chemin complet exact existe déjà (si vous voulez imposer l'unicité)
-    public function fullPathExists(array $data, ?int $excludeId = null): bool {
-        // Construire le chemin comme la BDD le ferait (approximativement) pour la vérification
-        $pathParts = [];
-        if (!empty($data['room'])) $pathParts[] = $data['room'];
-        if (!empty($data['area'])) $pathParts[] = $data['area'];
-        if (!empty($data['shelf_or_rack'])) $pathParts[] = $data['shelf_or_rack'];
-        if (!empty($data['level_or_section'])) $pathParts[] = $data['level_or_section'];
-        if (!empty($data['specific_spot_or_box'])) $pathParts[] = $data['specific_spot_or_box'];
-        $testPath = implode(' > ', $pathParts);
+	public function fullPathExists(array $data, ?int $excludeId = null): bool {
+		// Nettoyer et construire le chemin de test.
+		// S'assurer que les champs vides deviennent NULL pour CONCAT_WS
+		$room = trim($data['room'] ?? '');
+		$area = trim($data['area'] ?? '');
+		$shelf = trim($data['shelf_or_rack'] ?? '');
+		$level = trim($data['level_or_section'] ?? '');
+		$spot = trim($data['specific_spot_or_box'] ?? '');
 
-        if (empty($testPath)) return false; // Ne pas vérifier un chemin vide
+		if (empty($room)) { // Room est requis, donc il ne devrait pas être vide si la validation de base est passée
+			return false; 
+		}
 
-        $sql = "SELECT id FROM {$this->tableName} WHERE full_location_path = :full_path";
-        $params = [':full_path' => $testPath];
-        if ($excludeId !== null) {
-            $sql .= " AND id != :exclude_id";
-            $params[':exclude_id'] = $excludeId;
-        }
-        $stmt = $this->dbInstance->query($sql, $params);
-        return $stmt && $stmt->fetch() !== false;
-    }
+		// Simuler la logique de CONCAT_WS avec NULLIF pour la comparaison
+		// Note: La logique exacte de NULLIF dans CONCAT_WS est que si le champ est une chaîne vide, il est omis.
+		// Si le champ est NULL, il est omis.
+		$pathParts = [];
+		$pathParts[] = $room; // Room est toujours là
+		if (!empty($area)) $pathParts[] = $area;
+		if (!empty($shelf)) $pathParts[] = $shelf;
+		if (!empty($level)) $pathParts[] = $level;
+		if (!empty($spot)) $pathParts[] = $spot;
+		
+		$testPath = implode(' > ', $pathParts);
+
+		$sql = "SELECT id FROM {$this->tableName} WHERE full_location_path = :full_path";
+		$params = [':full_path' => $testPath];
+
+		if ($excludeId !== null) {
+			$sql .= " AND id != :exclude_id";
+			$params[':exclude_id'] = $excludeId;
+		}
+		$stmt = $this->dbInstance->query($sql, $params);
+		return $stmt && $stmt->fetch() !== false;
+}
 
 
     public function create(array $data): int|false {
@@ -131,4 +145,16 @@ class StorageLocation {
         }
         return false;
     }
+
+    public function getDistinctValuesForField(string $fieldName): array {
+        $allowedFields = ['room', 'area', 'shelf_or_rack', 'level_or_section'];
+        if (!in_array($fieldName, $allowedFields)) {
+            return [];
+        }
+
+        $sql = "SELECT DISTINCT `{$fieldName}` FROM {$this->tableName} WHERE `{$fieldName}` IS NOT NULL AND `{$fieldName}` != '' ORDER BY `{$fieldName}` ASC";
+        $stmt = $this->dbInstance->query($sql);
+        // --- MODIFICATION ICI ---
+        return $stmt ? $stmt->fetchAll(\PDO::FETCH_COLUMN) : []; // Utiliser \PDO::FETCH_COLUMN
+	}
 }

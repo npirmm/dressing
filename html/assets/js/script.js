@@ -303,8 +303,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const slRoomSearch = document.getElementById('slRoomSearch');
     const slAreaSearch = document.getElementById('slAreaSearch');
     const slShelfSearch = document.getElementById('slShelfSearch');
-    const slLevelSearch = document.getElementById('slLevelSearch'); // Ajouté
-    const slSpotSearch = document.getElementById('slSpotSearch');   // Ajouté
+    const slLevelSearch = document.getElementById('slLevelSearch');
+    const slSpotSearch = document.getElementById('slSpotSearch');
+    const slFullPathSearch = document.getElementById('slFullPathSearch'); // Nouveau
     const storageLocationsTable = document.getElementById('storageLocationsTable');
 
     function filterStorageLocationsTable() {
@@ -312,44 +313,55 @@ document.addEventListener('DOMContentLoaded', function () {
         const roomTerm = slRoomSearch ? slRoomSearch.value.toLowerCase() : '';
         const areaTerm = slAreaSearch ? slAreaSearch.value.toLowerCase() : '';
         const shelfTerm = slShelfSearch ? slShelfSearch.value.toLowerCase() : '';
-        const levelTerm = slLevelSearch ? slLevelSearch.value.toLowerCase() : ''; // Ajouté
-        const spotTerm = slSpotSearch ? slSpotSearch.value.toLowerCase() : '';   // Ajouté
+        const levelTerm = slLevelSearch ? slLevelSearch.value.toLowerCase() : '';
+        const spotTerm = slSpotSearch ? slSpotSearch.value.toLowerCase() : '';
+        const fullPathTerm = slFullPathSearch ? slFullPathSearch.value.toLowerCase() : ''; // Nouveau
 
         const tbody = storageLocationsTable.getElementsByTagName('tbody')[0];
         if (!tbody) return;
         const rows = tbody.getElementsByTagName('tr');
 
         for (let i = 0; i < rows.length; i++) {
-            const roomCell = rows[i].getElementsByTagName('td')[1];  // Room
-            const areaCell = rows[i].getElementsByTagName('td')[2];  // Area
-            const shelfCell = rows[i].getElementsByTagName('td')[3]; // Shelf/Rack
-            // Pour les autres colonnes (level, spot), elles ne sont pas affichées par défaut dans l'index.php actuel.
-            // Si vous les ajoutez à l'affichage du tableau index, vous pourrez les filtrer.
-            // Pour l'instant, on filtre sur ce qui est visible.
-            // const fullPathCell = rows[i].getElementsByTagName('td')[4]; // Full Path
+            const roomCell = rows[i].getElementsByTagName('td')[1];
+            const areaCell = rows[i].getElementsByTagName('td')[2];
+            const shelfCell = rows[i].getElementsByTagName('td')[3];
+            const levelCell = rows[i].getElementsByTagName('td')[4]; // Correspond à Level/Sec.
+            const spotCell = rows[i].getElementsByTagName('td')[5];  // Correspond à Spot/Box
+            const fullPathCell = rows[i].getElementsByTagName('td')[6]; // Correspond à Full Path
 
-            let roomMatch = true, areaMatch = true, shelfMatch = true; // levelMatch = true, spotMatch = true;
+            let match = true; // Commence par true, et devient false si un filtre ne correspond pas
 
-            if (roomTerm && roomCell) roomMatch = (roomCell.textContent || roomCell.innerText || "").trim().toLowerCase().indexOf(roomTerm) > -1;
-            if (areaTerm && areaCell) areaMatch = (areaCell.textContent || areaCell.innerText || "").trim().toLowerCase().indexOf(areaTerm) > -1;
-            if (shelfTerm && shelfCell) shelfMatch = (shelfCell.textContent || shelfCell.innerText || "").trim().toLowerCase().indexOf(shelfTerm) > -1;
+            if (roomTerm && roomCell) {
+                if ((roomCell.textContent || roomCell.innerText || "").trim().toLowerCase().indexOf(roomTerm) === -1) match = false;
+            }
+            if (match && areaTerm && areaCell) { // Si déjà false, pas besoin de vérifier plus
+                if ((areaCell.textContent || areaCell.innerText || "").trim().toLowerCase().indexOf(areaTerm) === -1) match = false;
+            }
+            if (match && shelfTerm && shelfCell) {
+                if ((shelfCell.textContent || shelfCell.innerText || "").trim().toLowerCase().indexOf(shelfTerm) === -1) match = false;
+            }
+            if (match && levelTerm && levelCell) {
+                if ((levelCell.textContent || levelCell.innerText || "").trim().toLowerCase().indexOf(levelTerm) === -1) match = false;
+            }
+            if (match && spotTerm && spotCell) {
+                if ((spotCell.textContent || spotCell.innerText || "").trim().toLowerCase().indexOf(spotTerm) === -1) match = false;
+            }
+            if (match && fullPathTerm && fullPathCell) {
+                if ((fullPathCell.textContent || fullPathCell.innerText || "").trim().toLowerCase().indexOf(fullPathTerm) === -1) match = false;
+            }
             
-            rows[i].style.display = (roomMatch && areaMatch && shelfMatch) ? '' : 'none';
+            rows[i].style.display = match ? '' : 'none';
         }
     }
     if (storageLocationsTable) {
         if (slRoomSearch) slRoomSearch.addEventListener('keyup', filterStorageLocationsTable);
-        else console.warn('#slRoomSearch not found');
         if (slAreaSearch) slAreaSearch.addEventListener('keyup', filterStorageLocationsTable);
-        else console.warn('#slAreaSearch not found');
         if (slShelfSearch) slShelfSearch.addEventListener('keyup', filterStorageLocationsTable);
-        else console.warn('#slShelfSearch not found');
-        if (slLevelSearch) slLevelSearch.addEventListener('keyup', filterStorageLocationsTable); // Ajouté
-        else console.warn('#slLevelSearch not found');
-        if (slSpotSearch) slSpotSearch.addEventListener('keyup', filterStorageLocationsTable);   // Ajouté
-        else console.warn('#slSpotSearch not found');
+        if (slLevelSearch) slLevelSearch.addEventListener('keyup', filterStorageLocationsTable);
+        if (slSpotSearch) slSpotSearch.addEventListener('keyup', filterStorageLocationsTable);
+        if (slFullPathSearch) slFullPathSearch.addEventListener('keyup', filterStorageLocationsTable); // Nouveau
     } else {
-        if (slRoomSearch || slAreaSearch || slShelfSearch || slLevelSearch || slSpotSearch) console.warn('#storageLocationsTable not found');
+        if (slRoomSearch) console.warn('#storageLocationsTable not found but search fields exist');
     }
 
 });

@@ -39,12 +39,21 @@ class StorageLocationsController extends BaseController {
             $formAction = APP_URL . '/storagelocations/update/' . $id;
         }
 
-        $this->renderView('storage_locations/form', [
-            'pageTitle' => $pageTitle,
-            'storageLocation' => $storageLocation,
-            'formAction' => $formAction,
-            'csrfToken' => $_SESSION[CSRF_TOKEN_NAME]
-        ]);
+		$distinctRooms = $this->storageLocationModel->getDistinctValuesForField('room');
+		$distinctAreas = $this->storageLocationModel->getDistinctValuesForField('area');
+		$distinctShelves = $this->storageLocationModel->getDistinctValuesForField('shelf_or_rack');
+		$distinctLevels = $this->storageLocationModel->getDistinctValuesForField('level_or_section');
+
+		$this->renderView('storage_locations/form', [
+			'pageTitle' => $pageTitle,
+			'storageLocation' => $storageLocation,
+			'formAction' => $formAction,
+			'csrfToken' => $_SESSION[CSRF_TOKEN_NAME],
+			'distinctRooms' => $distinctRooms, // Passer les données à la vue
+			'distinctAreas' => $distinctAreas,
+			'distinctShelves' => $distinctShelves,
+			'distinctLevels' => $distinctLevels,
+		]);
     }
     
     public function create(): void { $this->form(null); }
@@ -77,13 +86,14 @@ class StorageLocationsController extends BaseController {
                     'specific_spot_or_box' => trim($_POST['specific_spot_or_box'] ?? '') ?: null,
                 ];
                 
-                // Si vous implémentez fullPathExists pour la validation
-                // if ($this->storageLocationModel->fullPathExists($dataToCreate)) {
-                //     $_SESSION['form_data'] = $_POST;
-                //     $_SESSION['form_errors']['room'] = ['This exact location path already exists.']; // Ou un champ général
-                //     Helper::redirect('storagelocations/create');
-                //     return;
-                // }
+            if ($this->storageLocationModel->fullPathExists($dataToCreate)) {
+                $_SESSION['form_data'] = $_POST;
+                // Ajouter une erreur spécifique pour le chemin complet
+                // Vous pouvez choisir un champ "général" pour cette erreur ou un champ principal comme 'room'
+                $_SESSION['form_errors']['room'] = ['This exact storage location path already exists.'];
+                Helper::redirect('storagelocations/create');
+                return; // Stopper l'exécution
+            }
 
                 $id = $this->storageLocationModel->create($dataToCreate);
                 if ($id) {
@@ -126,13 +136,12 @@ class StorageLocationsController extends BaseController {
                     'specific_spot_or_box' => trim($_POST['specific_spot_or_box'] ?? '') ?: null,
                 ];
 
-                // Si vous implémentez fullPathExists pour la validation
-                // if ($this->storageLocationModel->fullPathExists($dataToUpdate, $id)) {
-                //     $_SESSION['form_data'] = $_POST;
-                //     $_SESSION['form_errors']['room'] = ['This exact location path already exists.'];
-                //     Helper::redirect('storagelocations/edit/' . $id);
-                //     return;
-                // }
+            if ($this->storageLocationModel->fullPathExists($dataToUpdate, $id)) {
+                $_SESSION['form_data'] = $_POST;
+                $_SESSION['form_errors']['room'] = ['This exact storage location path already exists for another entry.'];
+                Helper::redirect('storagelocations/edit/' . $id);
+                return; // Stopper l'exécution
+            }
                 
                 $noChanges = ($dataToUpdate['room'] === $location['room'] &&
                               $dataToUpdate['area'] === $location['area'] &&

@@ -25,28 +25,48 @@ function display_error_sl(string $field, array $errors): string {
     <div class="row">
         <div class="col-md-6 mb-3">
             <label for="room" class="form-label">Room <span class="text-danger">*</span></label>
-            <input type="text" class="form-control <?php echo !empty($formErrors['room']) ? 'is-invalid' : ''; ?>"
+            <input list="roomsDatalist" type="text" class="form-control <?php echo !empty($formErrors['room']) ? 'is-invalid' : ''; ?>"
                    id="room" name="room" value="<?php echo Helper::e($formRoom); ?>" required>
+            <datalist id="roomsDatalist">
+                <?php foreach ($distinctRooms as $value): ?>
+                    <option value="<?php echo Helper::e($value); ?>">
+                <?php endforeach; ?>
+            </datalist>
             <?php echo display_error_sl('room', $formErrors); ?>
         </div>
         <div class="col-md-6 mb-3">
             <label for="area" class="form-label">Area/Closet</label>
-            <input type="text" class="form-control <?php echo !empty($formErrors['area']) ? 'is-invalid' : ''; ?>"
+            <input list="areasDatalist" type="text" class="form-control <?php echo !empty($formErrors['area']) ? 'is-invalid' : ''; ?>"
                    id="area" name="area" value="<?php echo Helper::e($formArea); ?>">
+            <datalist id="areasDatalist">
+                <?php foreach ($distinctAreas as $value): ?>
+                    <option value="<?php echo Helper::e($value); ?>">
+                <?php endforeach; ?>
+            </datalist>
             <?php echo display_error_sl('area', $formErrors); ?>
         </div>
     </div>
     <div class="row">
         <div class="col-md-6 mb-3">
             <label for="shelf_or_rack" class="form-label">Shelf/Rack/Dresser</label>
-            <input type="text" class="form-control <?php echo !empty($formErrors['shelf_or_rack']) ? 'is-invalid' : ''; ?>"
+            <input list="shelvesDatalist" type="text" class="form-control <?php echo !empty($formErrors['shelf_or_rack']) ? 'is-invalid' : ''; ?>"
                    id="shelf_or_rack" name="shelf_or_rack" value="<?php echo Helper::e($formShelf); ?>">
+            <datalist id="shelvesDatalist">
+                <?php foreach ($distinctShelves as $value): ?>
+                    <option value="<?php echo Helper::e($value); ?>">
+                <?php endforeach; ?>
+            </datalist>
             <?php echo display_error_sl('shelf_or_rack', $formErrors); ?>
         </div>
         <div class="col-md-6 mb-3">
             <label for="level_or_section" class="form-label">Level/Drawer/Section</label>
-            <input type="text" class="form-control <?php echo !empty($formErrors['level_or_section']) ? 'is-invalid' : ''; ?>"
+            <input list="levelsDatalist" type="text" class="form-control <?php echo !empty($formErrors['level_or_section']) ? 'is-invalid' : ''; ?>"
                    id="level_or_section" name="level_or_section" value="<?php echo Helper::e($formLevel); ?>">
+            <datalist id="levelsDatalist">
+                <?php foreach ($distinctLevels as $value): ?>
+                    <option value="<?php echo Helper::e($value); ?>">
+                <?php endforeach; ?>
+            </datalist>
             <?php echo display_error_sl('level_or_section', $formErrors); ?>
         </div>
     </div>
