@@ -253,6 +253,105 @@ document.addEventListener('DOMContentLoaded', function () {
         if (iuNameSearch || iuAbbreviationSearch) console.warn('#itemUsersTable not found');
     }
 
+    // --- Filtre pour Suppliers ---
+    const supNameSearch = document.getElementById('supNameSearch');
+    const supContactSearch = document.getElementById('supContactSearch');
+    const supEmailSearch = document.getElementById('supEmailSearch');
+    const supPhoneSearch = document.getElementById('supPhoneSearch');
+    const suppliersTable = document.getElementById('suppliersTable');
+
+    function filterSuppliersTable() {
+        if (!suppliersTable) return;
+        const nameTerm = supNameSearch ? supNameSearch.value.toLowerCase() : '';
+        const contactTerm = supContactSearch ? supContactSearch.value.toLowerCase() : '';
+        const emailTerm = supEmailSearch ? supEmailSearch.value.toLowerCase() : '';
+        const phoneTerm = supPhoneSearch ? supPhoneSearch.value.toLowerCase() : '';
+        const tbody = suppliersTable.getElementsByTagName('tbody')[0];
+        if (!tbody) return;
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const nameCell = rows[i].getElementsByTagName('td')[1];     // Name
+            const contactCell = rows[i].getElementsByTagName('td')[2];  // Contact
+            const emailCell = rows[i].getElementsByTagName('td')[3];    // Email
+            const phoneCell = rows[i].getElementsByTagName('td')[4];    // Phone
+            
+            let nameMatch = true, contactMatch = true, emailMatch = true, phoneMatch = true;
+
+            if (nameTerm && nameCell) nameMatch = (nameCell.textContent || nameCell.innerText || "").trim().toLowerCase().indexOf(nameTerm) > -1;
+            if (contactTerm && contactCell) contactMatch = (contactCell.textContent || contactCell.innerText || "").trim().toLowerCase().indexOf(contactTerm) > -1;
+            if (emailTerm && emailCell) emailMatch = (emailCell.textContent || emailCell.innerText || "").trim().toLowerCase().indexOf(emailTerm) > -1;
+            if (phoneTerm && phoneCell) phoneMatch = (phoneCell.textContent || phoneCell.innerText || "").trim().toLowerCase().indexOf(phoneTerm) > -1;
+            
+            rows[i].style.display = (nameMatch && contactMatch && emailMatch && phoneMatch) ? '' : 'none';
+        }
+    }
+    if (suppliersTable) {
+        if (supNameSearch) supNameSearch.addEventListener('keyup', filterSuppliersTable);
+        else console.warn('#supNameSearch not found for suppliersTable');
+        if (supContactSearch) supContactSearch.addEventListener('keyup', filterSuppliersTable);
+        else console.warn('#supContactSearch not found for suppliersTable');
+        if (supEmailSearch) supEmailSearch.addEventListener('keyup', filterSuppliersTable);
+        else console.warn('#supEmailSearch not found for suppliersTable');
+        if (supPhoneSearch) supPhoneSearch.addEventListener('keyup', filterSuppliersTable);
+        else console.warn('#supPhoneSearch not found for suppliersTable');
+    } else {
+        if (supNameSearch || supContactSearch || supEmailSearch || supPhoneSearch) console.warn('#suppliersTable not found');
+    }
+
+    // --- Filtre pour StorageLocations ---
+    const slRoomSearch = document.getElementById('slRoomSearch');
+    const slAreaSearch = document.getElementById('slAreaSearch');
+    const slShelfSearch = document.getElementById('slShelfSearch');
+    const slLevelSearch = document.getElementById('slLevelSearch'); // Ajouté
+    const slSpotSearch = document.getElementById('slSpotSearch');   // Ajouté
+    const storageLocationsTable = document.getElementById('storageLocationsTable');
+
+    function filterStorageLocationsTable() {
+        if (!storageLocationsTable) return;
+        const roomTerm = slRoomSearch ? slRoomSearch.value.toLowerCase() : '';
+        const areaTerm = slAreaSearch ? slAreaSearch.value.toLowerCase() : '';
+        const shelfTerm = slShelfSearch ? slShelfSearch.value.toLowerCase() : '';
+        const levelTerm = slLevelSearch ? slLevelSearch.value.toLowerCase() : ''; // Ajouté
+        const spotTerm = slSpotSearch ? slSpotSearch.value.toLowerCase() : '';   // Ajouté
+
+        const tbody = storageLocationsTable.getElementsByTagName('tbody')[0];
+        if (!tbody) return;
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const roomCell = rows[i].getElementsByTagName('td')[1];  // Room
+            const areaCell = rows[i].getElementsByTagName('td')[2];  // Area
+            const shelfCell = rows[i].getElementsByTagName('td')[3]; // Shelf/Rack
+            // Pour les autres colonnes (level, spot), elles ne sont pas affichées par défaut dans l'index.php actuel.
+            // Si vous les ajoutez à l'affichage du tableau index, vous pourrez les filtrer.
+            // Pour l'instant, on filtre sur ce qui est visible.
+            // const fullPathCell = rows[i].getElementsByTagName('td')[4]; // Full Path
+
+            let roomMatch = true, areaMatch = true, shelfMatch = true; // levelMatch = true, spotMatch = true;
+
+            if (roomTerm && roomCell) roomMatch = (roomCell.textContent || roomCell.innerText || "").trim().toLowerCase().indexOf(roomTerm) > -1;
+            if (areaTerm && areaCell) areaMatch = (areaCell.textContent || areaCell.innerText || "").trim().toLowerCase().indexOf(areaTerm) > -1;
+            if (shelfTerm && shelfCell) shelfMatch = (shelfCell.textContent || shelfCell.innerText || "").trim().toLowerCase().indexOf(shelfTerm) > -1;
+            
+            rows[i].style.display = (roomMatch && areaMatch && shelfMatch) ? '' : 'none';
+        }
+    }
+    if (storageLocationsTable) {
+        if (slRoomSearch) slRoomSearch.addEventListener('keyup', filterStorageLocationsTable);
+        else console.warn('#slRoomSearch not found');
+        if (slAreaSearch) slAreaSearch.addEventListener('keyup', filterStorageLocationsTable);
+        else console.warn('#slAreaSearch not found');
+        if (slShelfSearch) slShelfSearch.addEventListener('keyup', filterStorageLocationsTable);
+        else console.warn('#slShelfSearch not found');
+        if (slLevelSearch) slLevelSearch.addEventListener('keyup', filterStorageLocationsTable); // Ajouté
+        else console.warn('#slLevelSearch not found');
+        if (slSpotSearch) slSpotSearch.addEventListener('keyup', filterStorageLocationsTable);   // Ajouté
+        else console.warn('#slSpotSearch not found');
+    } else {
+        if (slRoomSearch || slAreaSearch || slShelfSearch || slLevelSearch || slSpotSearch) console.warn('#storageLocationsTable not found');
+    }
+
 });
 
     // Si vous voulez ajouter des filtres pour d'autres colonnes, dupliquez la logique

@@ -283,7 +283,33 @@ class Validation {
                         $exists = $this->modelInstance->abbreviationExists((string)$value, $exceptValue ? (int)$exceptValue : null);
                         $specificHandlerUsed = true;
                     }
+                } elseif ($this->modelInstance instanceof \App\Models\Supplier) { // <-- AJOUTER CE BLOC
+                    if ($columnName === 'name') {
+                        $exists = $this->modelInstance->nameExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    } elseif ($columnName === 'email') {
+                        $exists = $this->modelInstance->emailExists((string)$value, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    }
+                } elseif ($this->modelInstance instanceof \App\Models\StorageLocation) { // <-- AJOUTER
+                    // La règle 'unique' ici serait sur 'full_location_path' qui n'est pas un champ direct du formulaire.
+                    // On pourrait avoir une règle custom ex: 'full_path_unique' et une méthode validateFullPathUnique.
+                    // Pour l'instant, on peut laisser le fallback SQL générique si on ajoute une contrainte unique sur full_location_path en BDD.
+                    // Ou, si on utilise la méthode fullPathExists:
+                    if ($columnName === 'full_location_path_check') { // Nom de "colonne" fictif pour la règle
+                        // Les données des champs individuels sont dans $this->data
+                        $locationData = [
+                            'room' => $this->data['room'] ?? '',
+                            'area' => $this->data['area'] ?? '',
+                            'shelf_or_rack' => $this->data['shelf_or_rack'] ?? '',
+                            'level_or_section' => $this->data['level_or_section'] ?? '',
+                            'specific_spot_or_box' => $this->data['specific_spot_or_box'] ?? '',
+                        ];
+                        $exists = $this->modelInstance->fullPathExists($locationData, $exceptValue ? (int)$exceptValue : null);
+                        $specificHandlerUsed = true;
+                    }
                 }
+				
                 // Ajoutez d'autres 'elseif' pour d'autres modèles ici...
             }
             
