@@ -56,15 +56,64 @@ class ArticlesController extends BaseController {
     }
 
     public function index(): void {
-        $sortBy = $_GET['sort'] ?? 'a.name'; // Qualifier avec l'alias de table 'a.'
-        $sortOrder = $_GET['order'] ?? 'asc';
-        // Les filtres viendront plus tard
-        $articles = $this->articleModel->getAll($sortBy, $sortOrder);
+        $sortBy = $_GET['sort'] ?? 'a.updated_at'; // Trier par date de mise à jour par défaut
+        $sortOrder = $_GET['order'] ?? 'DESC';     // Plus récent en premier
+
+        $filters = [
+            'name_ref_desc' => trim($_GET['filter_name_ref'] ?? ''),
+            'category_type_id' => trim($_GET['filter_category_id'] ?? ''),
+            'brand_id' => trim($_GET['filter_brand_id'] ?? ''),
+            'status_id' => trim($_GET['filter_status_id'] ?? ''),
+            'season' => trim($_GET['filter_season'] ?? ''),
+            'condition' => trim($_GET['filter_condition'] ?? ''),
+            // Ajoutez d'autres clés de filtre ici
+        ];
+
+        // Pagination
+        $itemsPerPage = 15; // Ou configurable
+        $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+        
+        // Appeler une nouvelle méthode dans le modèle qui gère aussi le comptage total pour la pagination
+        $result = $this->articleModel->getAllPaginated($sortBy, $sortOrder, $filters, $currentPage, $itemsPerPage);
+        $articles = $result['data'];
+        $totalArticles = $result['total'];
+        $totalPages = ceil($totalArticles / $itemsPerPage);
+
+        // Générer les liens de pagination (fonction à créer dans Helper.php ou ici)
+        $paginationLinks = Helper::generatePaginationLinks(APP_URL . '/articles', $currentPage, $totalPages, $_GET);
+
+
+        // Charger les données pour les listes déroulantes des filtres
+        $allCategoriesForFilter = $this->categoryTypeModel->getAll('name', 'ASC');
+        $allBrandsForFilter = $this->brandModel->getAll('name', 'ASC');
+        $allStatusesForFilter = $this->statusModel->getAll('id', 'ASC'); // Trié par ID comme demandé
+        $allSeasonOptionsForFilter = ['Printemps', 'Été', 'Automne', 'Hiver', 'Toutes saisons', 'Entre-saisons']; // Depuis config ou modèle Article
+        $allConditionOptionsForFilter = ['neuf', 'excellent', 'bon état', 'médiocre', 'à réparer/retoucher'];
+
 
         $this->renderView('articles/index', [
             'pageTitle' => 'Manage Articles',
             'articles' => $articles,
-            'articleImagePath' => APP_URL . '/assets/media/' . $this->articleImageUploadPath
+            'articleImagePath' => APP_URL . '/assets/media/' . $this->articleImageUploadPath,
+            'totalArticles' => $totalArticles,
+            'paginationLinks' => $paginationLinks,
+            'currentPage' => $currentPage,
+            'totalPages' => $totalPages,
+            
+            // Pour pré-remplir les filtres dans la vue
+            'filterNameRef' => $filters['name_ref_desc'],
+            'filterCategory' => $filters['category_type_id'],
+            'filterBrand' => $filters['brand_id'],
+            'filterStatus' => $filters['status_id'],
+            'filterSeason' => $filters['season'],
+            'filterCondition' => $filters['condition'],
+
+            // Données pour les selects des filtres
+            'allCategoriesForFilter' => $allCategoriesForFilter,
+            'allBrandsForFilter' => $allBrandsForFilter,
+            'allStatusesForFilter' => $allStatusesForFilter,
+            'allSeasonOptionsForFilter' => $allSeasonOptionsForFilter,
+            'allConditionOptionsForFilter' => $allConditionOptionsForFilter,
         ]);
     }
 

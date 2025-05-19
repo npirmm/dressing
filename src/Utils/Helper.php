@@ -146,4 +146,60 @@ class Helper {
         $link .= '</a>';
         return $link;
     }
+
+    public static function generatePaginationLinks(string $baseUrl, int $currentPage, int $totalPages, array $existingParams = [], int $linksToShow = 5): string {
+        if ($totalPages <= 1) {
+            return '';
+        }
+        $output = '';
+        // Nettoyer 'page' des paramètres existants pour ne pas le dupliquer
+        unset($existingParams['page']);
+        $queryString = http_build_query($existingParams);
+        $baseUrlWithParams = $baseUrl . ($queryString ? '?' . $queryString . '&' : '?');
+
+        // Lien Précédent
+        if ($currentPage > 1) {
+            $output .= '<li class="page-item"><a class="page-link" href="' . $baseUrlWithParams . 'page=' . ($currentPage - 1) . '">Previous</a></li>';
+        } else {
+            $output .= '<li class="page-item disabled"><span class="page-link">Previous</span></li>';
+        }
+
+        // Logique pour afficher un nombre limité de liens de page
+        $startPage = max(1, $currentPage - floor($linksToShow / 2));
+        $endPage = min($totalPages, $startPage + $linksToShow - 1);
+        if ($endPage - $startPage + 1 < $linksToShow) { // Ajuster si on est proche de la fin
+            $startPage = max(1, $endPage - $linksToShow + 1);
+        }
+        
+        if ($startPage > 1) {
+            $output .= '<li class="page-item"><a class="page-link" href="' . $baseUrlWithParams . 'page=1">1</a></li>';
+            if ($startPage > 2) {
+                $output .= '<li class="page-item disabled"><span class="page-link">...</span></li>';
+            }
+        }
+
+        for ($i = $startPage; $i <= $endPage; $i++) {
+            if ($i == $currentPage) {
+                $output .= '<li class="page-item active" aria-current="page"><span class="page-link">' . $i . '</span></li>';
+            } else {
+                $output .= '<li class="page-item"><a class="page-link" href="' . $baseUrlWithParams . 'page=' . $i . '">' . $i . '</a></li>';
+            }
+        }
+        
+        if ($endPage < $totalPages) {
+            if ($endPage < $totalPages - 1) {
+                $output .= '<li class="page-item disabled"><span class="page-link">...</span></li>';
+            }
+            $output .= '<li class="page-item"><a class="page-link" href="' . $baseUrlWithParams . 'page=' . $totalPages . '">' . $totalPages . '</a></li>';
+        }
+
+
+        // Lien Suivant
+        if ($currentPage < $totalPages) {
+            $output .= '<li class="page-item"><a class="page-link" href="' . $baseUrlWithParams . 'page=' . ($currentPage + 1) . '">Next</a></li>';
+        } else {
+            $output .= '<li class="page-item disabled"><span class="page-link">Next</span></li>';
+        }
+        return $output;
+    }
 }

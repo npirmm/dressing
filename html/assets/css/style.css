@@ -6,6 +6,8 @@
 #itemUsersTable thead th a,
 #suppliersTable thead th a,
 #storageLocationsTable thead th a,
+#articlesTable thead th a,
+#statusesTable thead th a,
 #categoryTypesTable thead th a { /* Exemple pour la table des marques */ 
     color: white; /* Texte de l'en-tête en blanc (si thead.table-dark est utilisé) */
     text-decoration: none; /* Enlever le soulignement par défaut des liens */
@@ -20,6 +22,8 @@
 #itemUsersTable thead th a:hover,
 #suppliersTable thead th a:hover,
 #storageLocationsTable thead th a:hover,
+#articlesTable thead th a:hover,
+#statusesTable thead th a:hover,
 #categoryTypesTable thead th a:hover {
     color: #cccccc; /* Légère variation de couleur au survol */
     /* text-decoration: underline; // Si vous voulez un soulignement au survol */
@@ -54,6 +58,8 @@
 #itemUsersTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
 #suppliersTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
 #storageLocationsTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
+#articlesTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
+#statusesTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i,
 #categoryTypesTable thead th a:hover .sort-icon-wrapper.inactive-sort-icon i  {
     color: #bbbbbb; /* Gris plus clair au survol */
     opacity: 0.8;

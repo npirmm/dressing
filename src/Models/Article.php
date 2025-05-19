@@ -363,6 +363,117 @@ class Article {
         }
     }
 
+    public function getAllPaginated(
+        string $sortBy, 
+        string $sortOrder, 
+        array $filters = [], 
+        int $currentPage = 1, 
+        int $itemsPerPage = 15
+	 ): array {
+		$allowedSortColumns = [
+			'a.id', 'a.name', 'a.article_ref', 'a.size', 'a.condition', // Champs de la table 'articles' (alias 'a')
+			'ct.name', // Nom du CategoryType (alias 'ct')
+			'b.name',  // Nom du Brand (alias 'b')
+			'st.name', // Nom du Status (alias 'st')
+			'a.created_at', 'a.updated_at', 'a.last_worn_at', 'a.times_worn'
+			// Note: 'sl.full_location_path' n'est pas dans la requête SELECT de getAllPaginated, donc on ne peut pas trier dessus ici.
+		];
+		
+		$sortByQualified = 'a.updated_at'; // Défaut sûr
+		$sortOrderSanitized = (strtoupper($sortOrder) === 'DESC') ? 'DESC' : 'ASC';
+
+		// Logique de qualification améliorée
+		$potentialQualifiedSortBy = strtolower($sortBy);
+		if (strpos($potentialQualifiedSortBy, '.') === false) { // Si pas d'alias fourni
+			if (in_array('a.' . $potentialQualifiedSortBy, $allowedSortColumns)) {
+				$sortByQualified = 'a.' . $potentialQualifiedSortBy;
+			} elseif (in_array('ct.' . $potentialQualifiedSortBy, $allowedSortColumns)) {
+				$sortByQualified = 'ct.' . $potentialQualifiedSortBy;
+			} elseif (in_array('b.' . $potentialQualifiedSortBy, $allowedSortColumns)) {
+				$sortByQualified = 'b.' . $potentialQualifiedSortBy;
+			} elseif (in_array('st.' . $potentialQualifiedSortBy, $allowedSortColumns)) {
+				$sortByQualified = 'st.' . $potentialQualifiedSortBy;
+			}
+			// Ajoutez d'autres alias si nécessaire
+		} elseif (in_array($potentialQualifiedSortBy, $allowedSortColumns)) { // Si alias déjà fourni et valide
+			$sortByQualified = $potentialQualifiedSortBy;
+		}
+		// Si rien ne correspond, $sortByQualified reste à sa valeur par défaut 'a.updated_at'
+
+		$selectFields = "a.id, a.name, a.article_ref, a.size, a.condition,
+						 ct.name as category_type_name, /* ct.name */
+						 b.name as brand_name, /* b.name */
+						 pc.hex_code as primary_color_hex,
+						 st.name as status_name, /* st.name */
+						 a.created_at, a.updated_at, a.last_worn_at, a.times_worn, /* Ajout des champs pour tri */
+						 (SELECT image_path FROM article_images WHERE article_id = a.id AND is_primary = TRUE LIMIT 1) as primary_image_path";
+        
+        $fromAndJoins = "FROM {$this->tableName} a
+                         LEFT JOIN categories_types ct ON a.category_type_id = ct.id
+                         LEFT JOIN brands b ON a.brand_id = b.id
+                         LEFT JOIN colors pc ON a.primary_color_id = pc.id
+                         LEFT JOIN statuses st ON a.current_status_id = st.id";
+
+        $whereClauses = [];
+        $params = [];
+
+        if (!empty($filters['name_ref_desc'])) {
+            $searchTerm = '%' . $filters['name_ref_desc'] . '%';
+            $whereClauses[] = "(a.name LIKE :search_name OR a.article_ref LIKE :search_ref OR a.description LIKE :search_desc)";
+            $params[':search_name'] = $searchTerm;
+            $params[':search_ref'] = $searchTerm;
+            $params[':search_desc'] = $searchTerm;
+        }
+        if (!empty($filters['category_type_id'])) {
+            $whereClauses[] = "a.category_type_id = :category_type_id";
+            $params[':category_type_id'] = (int)$filters['category_type_id'];
+        }
+        if (!empty($filters['brand_id'])) {
+            $whereClauses[] = "a.brand_id = :brand_id";
+            $params[':brand_id'] = (int)$filters['brand_id'];
+        }
+        if (!empty($filters['status_id'])) {
+            $whereClauses[] = "a.current_status_id = :status_id";
+            $params[':status_id'] = (int)$filters['status_id'];
+        }
+        if (!empty($filters['season'])) {
+            $whereClauses[] = "a.season = :season";
+            $params[':season'] = $filters['season'];
+        }
+        if (!empty($filters['condition'])) {
+            $whereClauses[] = "a.`condition` = :condition"; // Backticks pour 'condition'
+            $params[':condition'] = $filters['condition'];
+        }
+        // Ajoutez d'autres filtres ici (couleur, matière, etc.)
+
+        $whereSql = "";
+        if (!empty($whereClauses)) {
+            $whereSql = " WHERE " . implode(" AND ", $whereClauses);
+        }
+
+        // Compter le total d'éléments pour la pagination (AVANT LIMIT)
+        $totalSql = "SELECT COUNT(a.id) as total {$fromAndJoins} {$whereSql}";
+        $totalStmt = $this->dbInstance->query($totalSql, $params);
+        $totalItems = $totalStmt ? (int)$totalStmt->fetch()['total'] : 0;
+
+        // Calculer l'offset pour la pagination
+        $offset = ($currentPage - 1) * $itemsPerPage;
+
+        // Requête principale avec filtres, tri et pagination
+		$sql = "SELECT {$selectFields} {$fromAndJoins} {$whereSql} 
+				ORDER BY {$sortByQualified} {$sortOrderSanitized} 
+				LIMIT {$itemsPerPage} OFFSET {$offset}";
+        
+        $stmt = $this->dbInstance->query($sql, $params);
+        $data = $stmt ? $stmt->fetchAll() : [];
+
+        return [
+            'data' => $data,
+            'total' => $totalItems,
+            'currentPage' => $currentPage,
+            'itemsPerPage' => $itemsPerPage
+        ];
+    }
  
 
 
