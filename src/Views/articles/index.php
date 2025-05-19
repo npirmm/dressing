@@ -1,4 +1,4 @@
-<?php
+<?php // src/Views/articles/index.php
 use App\Utils\Helper;
 $currentSortColumn = $_GET['sort'] ?? 'a.name'; // Doit correspondre aux clés dans $allowedSortColumns du modèle
 $currentSortOrder = $_GET['order'] ?? 'asc';
@@ -58,10 +58,13 @@ $baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', strtok($_SERVER['REQUES
                         <?php else: echo 'N/A'; endif; ?>
                     </td>
                     <td><?php echo Helper::e($item['status_name'] ?? 'N/A'); ?></td>
-                    <td>
-                        <a href="<?php echo APP_URL; ?>/articles/edit/<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                        <a href="<?php echo APP_URL; ?>/articles/show/<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-info" title="View"><i class="bi bi-eye"></i></a>
-                        {/* Delete form viendra plus tard */}
+					<td>
+						<a href="<?php echo APP_URL; ?>/articles/show/<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-info" title="View Details"><i class="bi bi-eye"></i></a>
+						<a href="<?php echo APP_URL; ?>/articles/edit/<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-primary" title="Edit Article"><i class="bi bi-pencil-square"></i></a>
+						<a href="<?php echo APP_URL; ?>/articles/log_event/<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-success" title="Log Event / Change Status">
+							<i class="bi bi-calendar-event"></i> Log
+						</a>
+								{/* Delete form viendra plus tard */}
                     </td>
                 </tr>
             <?php endforeach; ?>

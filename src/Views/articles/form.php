@@ -181,6 +181,7 @@ $f_selected_associated_ids = $oldFormData['associated_article_ids'] ?? ($selecte
             <hr>
             <h4>Status & Storage</h4>
              <div class="row">
+    <?php /* Commenter ou supprimer le champ Current Status
                 <div class="col-md-6 mb-3">
                     <label for="current_status_id" class="form-label">Current Status <span class="text-danger">*</span></label>
                      <select class="form-select <?php echo !empty($formErrors['current_status_id']) ? 'is-invalid' : ''; ?>" 
@@ -194,7 +195,9 @@ $f_selected_associated_ids = $oldFormData['associated_article_ids'] ?? ($selecte
                     </select>
                     <?php echo display_field_error('current_status_id', $formErrors); ?>
                 </div>
-                <div class="col-md-6 mb-3">
+	*/ ?>
+    <?php /* Commenter ou supprimer le champ Storage Location
+            <div class="col-md-6 mb-3">
                     <label for="current_storage_location_id" class="form-label">Storage Location</label>
                      <select class="form-select <?php echo !empty($formErrors['current_storage_location_id']) ? 'is-invalid' : ''; ?>" 
                             id="current_storage_location_id" name="current_storage_location_id">
@@ -207,8 +210,10 @@ $f_selected_associated_ids = $oldFormData['associated_article_ids'] ?? ($selecte
                     </select>
                     <?php echo display_field_error('current_storage_location_id', $formErrors); ?>
                 </div>
+	*/ ?>
             </div>
              <div class="row">
+
                 <div class="col-md-6 mb-3">
                     <label for="condition" class="form-label">Condition <span class="text-danger">*</span></label>
                     <select class="form-select <?php echo !empty($formErrors['condition']) ? 'is-invalid' : ''; ?>" 
@@ -221,6 +226,7 @@ $f_selected_associated_ids = $oldFormData['associated_article_ids'] ?? ($selecte
                     </select>
                     <?php echo display_field_error('condition', $formErrors); ?>
                 </div>
+
                 <div class="col-md-6 mb-3">
                      <label for="season" class="form-label">Season</label>
                     <select class="form-select <?php echo !empty($formErrors['season']) ? 'is-invalid' : ''; ?>" 
@@ -234,6 +240,7 @@ $f_selected_associated_ids = $oldFormData['associated_article_ids'] ?? ($selecte
                     </select>
                     <?php echo display_field_error('season', $formErrors); ?>
                 </div>
+
             </div>
 
             <hr>

@@ -28,3 +28,5 @@ define('CSRF_TOKEN_NAME', '_csrf_token');
 // Logging User ID for actions when no user is logged in (e.g., system tasks)
 // Corresponds to the 'system_logger' user ID in the 'users' table (e.g., 2)
 define('SYSTEM_USER_ID', 2);
+
+define('STATUS_ID_NEW_PURCHASE', 5); // **Remplacez 5 par l'ID réel de ce statut dans votre BDD**

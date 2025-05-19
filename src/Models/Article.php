@@ -255,5 +255,116 @@ class Article {
             }
         }
     }
+    /**
+     * Enregistre un événement pour un article et met à jour le statut/localisation de l'article.
+     * Gère cela dans une transaction.
+     * @param int $articleId L'ID de l'article.
+     * @param array $eventData Données pour la table event_log.
+     * @param array $articleUpdateData Données pour mettre à jour l'article principal.
+     * @param array $eventImageFiles Tableau de fichiers d'images pour l'événement (depuis $_FILES).
+     * @param int|null $groupedEventId ID optionnel d'un événement groupé à lier.
+     * @return bool True en cas de succès, false sinon.
+     */
+    public function recordArticleEvent(int $articleId, array $eventData, array $articleUpdateData, array $eventImageFiles = [], ?int $groupedEventId = null): bool {
+        $pdo = $this->dbInstance->getConnection();
+        // L'uploader d'images pour les événements (chemin différent des images d'articles)
+        $eventImageUploader = null;
+        if (!empty($eventImageFiles) && defined('EVENT_IMAGE_PATH')) { // EVENT_IMAGE_PATH de config/app.php
+            $eventImageUploader = new \App\Utils\ImageUploader(EVENT_IMAGE_PATH);
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            // 1. Créer l'entrée dans event_log
+            $eventLogModel = new EventLog(); // Instancier ici
+            $eventData['article_id'] = $articleId; // S'assurer que article_id est bien là
+            // created_by_app_user_id sera géré par EventLogModel si non fourni explicitement
+
+            $eventLogId = $eventLogModel->create($eventData);
+            if (!$eventLogId) {
+                $pdo->rollBack();
+                error_log("Failed to insert into event_log for article_id: {$articleId}");
+                return false;
+            }
+
+            // 2. Gérer l'upload des images d'événement et les lier à event_log
+            if ($eventImageUploader && !empty($eventImageFiles['name'][0])) { // Vérifier si des fichiers ont été soumis
+                $fileCount = count($eventImageFiles['name']);
+                for ($i = 0; $i < $fileCount; $i++) {
+                    if ($eventImageFiles['error'][$i] === UPLOAD_ERR_OK) {
+                        $currentFile = [
+                            'name' => $eventImageFiles['name'][$i],
+                            'type' => $eventImageFiles['type'][$i],
+                            'tmp_name' => $eventImageFiles['tmp_name'][$i],
+                            'error' => $eventImageFiles['error'][$i],
+                            'size' => $eventImageFiles['size'][$i]
+                        ];
+                        // Nom de fichier unique pour l'image d'événement
+                        $eventImageName = 'event_' . $eventLogId . '_' . time() . '_' . ($i + 1);
+                        if ($eventImageUploader->upload($currentFile, $eventImageName)) {
+                            $eventLogModel->addImage($eventLogId, $eventImageUploader->getUploadedFileName(), $_POST['event_image_captions'][$i] ?? null);
+                        } else {
+                            // Gérer l'échec d'upload d'une image d'événement (log, mais continuer la transaction ?)
+                            error_log("Failed to upload event image: " . $eventImageFiles['name'][$i] . " Errors: " . implode(', ', $eventImageUploader->getErrors()));
+                        }
+                    }
+                }
+            }
+
+            // 3. Lier à un événement groupé si un ID est fourni
+            if ($groupedEventId !== null && $eventLogId) {
+                if (!$eventLogModel->linkEventToGroup($eventLogId, $groupedEventId)) {
+                     error_log("Failed to link event_log {$eventLogId} to grouped_event {$groupedEventId}");
+                     // Décider si c'est une erreur bloquante pour la transaction
+                }
+            }
+
+            // 4. Mettre à jour l'article principal (statut, localisation, etc.)
+            $updateClauses = [];
+            $articleParams = [':id' => $articleId]; // :id est pour la clause WHERE
+
+            if (isset($articleUpdateData['current_status_id'])) {
+                $updateClauses[] = "current_status_id = :update_current_status_id"; // Utiliser des noms de placeholder uniques
+                $articleParams[':update_current_status_id'] = $articleUpdateData['current_status_id'];
+            }
+            if (array_key_exists('current_storage_location_id', $articleUpdateData)) {
+                $updateClauses[] = "current_storage_location_id = :update_current_storage_location_id";
+                $articleParams[':update_current_storage_location_id'] = $articleUpdateData['current_storage_location_id']; // Peut être NULL
+            }
+            if (isset($articleUpdateData['last_worn_at'])) {
+                 $updateClauses[] = "last_worn_at = " . ($articleUpdateData['last_worn_at'] === 'NOW()' ? "NOW()" : ":update_last_worn_at");
+                 if ($articleUpdateData['last_worn_at'] !== 'NOW()') { // Bind seulement si ce n'est pas NOW()
+                     $articleParams[':update_last_worn_at'] = $articleUpdateData['last_worn_at'];
+                 }
+            }
+            if (isset($articleUpdateData['increment_times_worn']) && $articleUpdateData['increment_times_worn']) {
+                 $updateClauses[] = "times_worn = COALESCE(times_worn, 0) + 1";
+            }
+
+            if (!empty($updateClauses)) {
+                $articleSql = "UPDATE {$this->tableName} SET " . implode(', ', $updateClauses) . ", updated_at = NOW() WHERE id = :id";
+                $stmtArticle = $this->dbInstance->query($articleSql, $articleParams);
+                if (!$stmtArticle) {
+                    $pdo->rollBack();
+                    error_log("Failed to update article (ID: {$articleId}) after logging event. Params: ".json_encode($articleParams)." Error: " . json_encode($this->dbInstance->getConnection()->errorInfo()));
+                    return false;
+                }
+            }
+            
+            $pdo->commit();
+            Helper::logAction('ARTICLE_EVENT_RECORDED', 'Article', $articleId, 'Event (ID: '.$eventLogId.') recorded for article.');
+            return true;
+
+        } catch (\Exception $e) {
+            $pdo->rollBack();
+            error_log("Error in recordArticleEvent for article_id {$articleId}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+ 
+
+
     // update() et delete() viendront après
 }

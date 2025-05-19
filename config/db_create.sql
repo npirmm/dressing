@@ -197,8 +197,8 @@ CREATE TABLE `associated_articles` (
   CONSTRAINT `check_different_articles` CHECK (`article_id_1` <> `article_id_2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: history_log (tracks status changes, usage events for articles)
-CREATE TABLE `history_log` (
+-- Table: history_log (tracks status changes, usage events for articles) OLD VERSION => remplacée par event_log (voir plus bas)
+/* CREATE TABLE `history_log` (
   `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `article_id` INT UNSIGNED NOT NULL,
   `log_timestamp` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -219,7 +219,7 @@ CREATE TABLE `history_log` (
   FOREIGN KEY (`item_user_id`) REFERENCES `item_users`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`related_supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci; */
 
 -- Table: event_log_images (Stores multiple images for a single history_log event entry)
 CREATE TABLE `event_log_images` (
@@ -311,3 +311,73 @@ CREATE TABLE `event_type_day_moment` (
   FOREIGN KEY (`event_type_id`) REFERENCES `event_types`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`day_moment_id`) REFERENCES `day_moments`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `item_users` 
+MODIFY COLUMN `abbreviation` VARCHAR(20) NOT NULL,
+ADD CONSTRAINT `unique_item_user_abbreviation` UNIQUE (`abbreviation`);
+
+-- Contraintes supplémentaires pour SUPPLIERS
+ALTER TABLE `suppliers` ADD CONSTRAINT `unique_supplier_name` UNIQUE (`name`);
+ALTER TABLE `suppliers` ADD CONSTRAINT `unique_supplier_email_if_not_null` UNIQUE (`email`);
+
+-- 1. Table principale: event_log
+CREATE TABLE `event_log` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `article_id` INT UNSIGNED NOT NULL,
+  `log_date` DATE NOT NULL COMMENT 'Date de début du statut/événement (sans heure)',
+  `log_time` TIME NULL DEFAULT NULL COMMENT 'Heure de début du statut/événement (optionnelle)',
+  
+  `status_id` INT UNSIGNED NOT NULL COMMENT 'Nouveau statut de l''article après cet événement (FK vers statuses.id)',
+  
+  -- Champs spécifiques à certains statuts/événements (tous NULLables)
+  `event_type_id` INT UNSIGNED NULL COMMENT 'Type d''événement (FK vers event_types.id)',
+  `event_name` VARCHAR(150) NULL COMMENT 'Nom spécifique de l''événement',
+  `description` TEXT NULL COMMENT 'Description plus longue de l''événement',
+  `item_user_id` INT UNSIGNED NULL COMMENT 'Personne qui a utilisé l''article (FK vers item_users.id)',
+  `related_supplier_id` INT UNSIGNED NULL COMMENT 'Fournisseur lié (FK vers suppliers.id)',
+  `cost_associated` DECIMAL(10,2) NULL COMMENT 'Coût/prix associé',
+  `currency` CHAR(3) DEFAULT 'EUR',
+
+  `created_by_app_user_id` INT UNSIGNED NULL COMMENT 'Utilisateur de l''application qui a enregistré cet événement (FK vers users.id)',
+  `created_at_log_entry` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Timestamp de création de cette entrée de log',
+
+  FOREIGN KEY (`article_id`) REFERENCES `articles`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`status_id`) REFERENCES `statuses`(`id`),
+  FOREIGN KEY (`event_type_id`) REFERENCES `event_types`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`item_user_id`) REFERENCES `item_users`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`related_supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`created_by_app_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Table: event_log_images (Pour les images multiples par entrée de event_log)
+CREATE TABLE `event_log_images` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `event_log_id` BIGINT UNSIGNED NOT NULL, -- Changé de history_log_id
+  `image_path` VARCHAR(255) NOT NULL COMMENT 'Path relative to a base image directory',
+  `caption` VARCHAR(255) NULL,
+  `uploaded_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`event_log_id`) REFERENCES `event_log`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. Table: grouped_event_articles (Pour lier plusieurs articles à un "concept" d'événement)
+CREATE TABLE `grouped_event_articles` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `group_event_name` VARCHAR(150) NULL COMMENT 'Nom commun du groupe d''événement',
+    `group_event_date` DATE NOT NULL COMMENT 'Date de ce groupe d''événement',
+    `group_event_time` TIME NULL DEFAULT NULL COMMENT 'Heure de ce groupe d''événement (optionnelle)',
+    `notes` TEXT NULL,
+    `created_at_group` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. Table de liaison: event_log_grouped_event_link
+CREATE TABLE `event_log_grouped_event_link` (
+    `event_log_id` BIGINT UNSIGNED NOT NULL, -- Changé de history_log_id
+    `grouped_event_id` BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (`event_log_id`, `grouped_event_id`),
+    FOREIGN KEY (`event_log_id`) REFERENCES `event_log`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`grouped_event_id`) REFERENCES `grouped_event_articles`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Ajout d'un index sur article_id dans event_log pour des recherches plus rapides par article
+ALTER TABLE `event_log` ADD INDEX `idx_event_log_article_id` (`article_id`);
+ALTER TABLE `event_log` ADD INDEX `idx_event_log_date` (`log_date`);

@@ -428,7 +428,19 @@ class Validation {
         }
         return true;
     }
-	
+
+    protected function validateTimeOrEmpty(string $field, $value, array $params): bool {
+        if (empty($value)) {
+            return true;
+        }
+        // Accepte HH:MM ou HH:MM:SS
+        if (!preg_match('/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/', (string)$value)) {
+            $this->addError($field, "The {$field} format is invalid (HH:MM or HH:MM:SS).");
+            return false;
+        }
+        return true;
+    }
+
     // Add more validation methods as needed (numeric, alpha, date, etc.)
 }
 

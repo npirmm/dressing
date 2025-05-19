@@ -11,10 +11,14 @@ use App\Models\Material; // Nécessaire pour la liste des matières
 use App\Models\Status; // Nécessaire pour la liste des statuts
 use App\Models\StorageLocation; // Nécessaire pour la liste des lieux de stockage
 use App\Models\Supplier; // Nécessaire pour la liste des fournisseurs
-// ItemUser sera utile pour la gestion de l'historique/événements, pas forcément dans ce formulaire initial
+use App\Models\EventType;      // Pour la liste des types d'événements
+use App\Models\ItemUser;       // Pour la liste des utilisateurs d'items
+use App\Models\EventLog;
 use App\Utils\Helper;
 use App\Utils\Validation; 
 use App\Utils\ImageUploader; 
+
+
 
 class ArticlesController extends BaseController {
     private Article $articleModel;
@@ -28,7 +32,8 @@ class ArticlesController extends BaseController {
     private Status $statusModel;
     private StorageLocation $storageLocationModel;
     private Supplier $supplierModel;
-
+    private EventType $eventTypeModel; 
+    private ItemUser $itemUserModel;   
 
     public function __construct() {
         $this->articleModel = new Article();
@@ -46,6 +51,8 @@ class ArticlesController extends BaseController {
         $this->statusModel = new Status(); // Assurez-vous que Status.php existe et est correct
         $this->storageLocationModel = new StorageLocation();
         $this->supplierModel = new Supplier();
+        $this->eventTypeModel = new EventType();
+        $this->itemUserModel = new ItemUser();
     }
 
     public function index(): void {
@@ -117,7 +124,7 @@ class ArticlesController extends BaseController {
         $colors = $this->colorModel->getAll('name', 'ASC');
         $materials = $this->materialModel->getAll('name', 'ASC');
         // Assurez-vous d'avoir un modèle Status.php et une méthode getAll()
-        $statuses = (new Status())->getAll('id', 'ASC'); // Instanciation directe si pas déjà dans $this
+        $statuses = $this->statusModel->getAll('id', 'ASC'); // Nouveau tri par ID
         $storageLocations = $this->storageLocationModel->getAll('full_location_path', 'ASC'); // Trier par full_path
         $suppliers = $this->supplierModel->getAll('name', 'ASC');
         
@@ -165,39 +172,31 @@ class ArticlesController extends BaseController {
 
     public function store(): void {
         $this->verifyCsrf();
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             Helper::redirect('articles/create');
             return;
         }
 
-        // 1. Validation des données de base
-        // Le modèle Article sera utilisé pour des vérifications 'exists' si besoin, mais pas pour 'unique' sur les champs directs d'article pour l'instant
-        $validator = new Validation($_POST, null); // Pas de modèle pour unique sur 'name' d'article pour l'instant
-        
-        // Définir les règles de validation
-        // Note: Les ID des entités liées (brand_id, color_id, etc.) doivent être validés comme 'numeric'
-        // et potentiellement avec une règle 'exists:tableName,idColumn' si vous l'implémentez dans Validation.php
-        $rules = [
+        $validator = new Validation($_POST, null);
+        $rules = [ // Les règles ne doivent plus contenir 'current_status_id' ici
             'name' => 'required|max:150',
-            'category_type_id' => 'required|numeric', // Doit exister dans categories_types
-            'current_status_id' => 'required|numeric', // Doit exister dans statuses
+            'category_type_id' => 'required|numeric',
             'condition' => 'required|in:neuf,excellent,bon état,médiocre,à réparer/retoucher',
             
             // Champs optionnels mais avec validation si fournis
-            'brand_id' => 'numeric_or_empty', // Règle custom à ajouter si besoin, ou juste numeric
+            'brand_id' => 'numeric_or_empty',
             'primary_color_id' => 'numeric_or_empty',
             'secondary_color_id' => 'numeric_or_empty',
             'material_id' => 'numeric_or_empty',
-            'current_storage_location_id' => 'numeric_or_empty',
+            // 'current_storage_location_id' n'est plus dans le form initial
             'supplier_id' => 'numeric_or_empty',
-            'season' => 'in:Printemps,Été,Automne,Hiver,Toutes saisons,Entre-saisons,', // Laisser la virgule pour 'empty'
+            'season' => 'in:Printemps,Été,Automne,Hiver,Toutes saisons,Entre-saisons,',
             'size' => 'max:50',
-            'weight_grams' => 'numeric_or_empty|min_numeric:0', // Règle custom à ajouter
-            'purchase_date' => 'date_or_empty', // Règle custom à ajouter
-            'purchase_price' => 'decimal_or_empty:2', // Règle custom (decimal avec 2 décimales)
+            'weight_grams' => 'numeric_or_empty|min_numeric:0',
+            'purchase_date' => 'date_or_empty',
+            'purchase_price' => 'decimal_or_empty:2',
             'estimated_value' => 'decimal_or_empty:2',
-            'rating' => 'numeric_or_empty|min_numeric:0|max_numeric:5', // Règle custom
+            'rating' => 'numeric_or_empty|min_numeric:0|max_numeric:5',
             // 'description', 'notes' sont des TEXT, pas de validation de longueur ici
             // 'article_images' (fichiers) et 'associated_article_ids' (tableau) sont gérés séparément
         ];
@@ -222,12 +221,20 @@ class ArticlesController extends BaseController {
             return;
         }
 
+		if (!defined('STATUS_ID_NEW_PURCHASE')) {
+			error_log("ERREUR CRITIQUE: Constante STATUS_ID_NEW_PURCHASE non définie.");
+			// Gérer erreur...
+			Helper::redirect('articles/create', ['danger' => 'System configuration error for default status.']); return;
+		}
+		$defaultStatusId = STATUS_ID_NEW_PURCHASE;
+		
+		
         // 2. Préparer les données pour la création de l'article principal
-        $postedSeason = trim($_POST['season'] ?? ''); // Récupérer la valeur postée
+        //$postedSeason = trim($_POST['season'] ?? ''); // Récupérer la valeur postée
         $articleData = [
             'name' => trim($_POST['name']),
             'description' => trim($_POST['description'] ?? '') ?: null,
-            'season' => !empty($postedSeason) ? $postedSeason : null, // Si vide, stocker NULL
+            'season' => !empty(trim($_POST['season'] ?? '')) ? trim($_POST['season']) : null,
             'category_type_id' => (int)$_POST['category_type_id'],
             'brand_id' => !empty($_POST['brand_id']) ? (int)$_POST['brand_id'] : null,
             'condition' => $_POST['condition'],
@@ -236,13 +243,15 @@ class ArticlesController extends BaseController {
             'material_id' => !empty($_POST['material_id']) ? (int)$_POST['material_id'] : null,
             'size' => trim($_POST['size'] ?? '') ?: null,
             'weight_grams' => !empty($_POST['weight_grams']) ? (int)$_POST['weight_grams'] : null,
-            'current_storage_location_id' => !empty($_POST['current_storage_location_id']) ? (int)$_POST['current_storage_location_id'] : null,
-            'current_status_id' => (int)$_POST['current_status_id'],
+            
+            'current_storage_location_id' => null, // Initialement null
+            'current_status_id' => $defaultStatusId, // *** UTILISER L'ID DU STATUT PAR DÉFAUT ICI ***
+
             'purchase_date' => !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null,
             'purchase_price' => !empty($_POST['purchase_price']) ? (float)$_POST['purchase_price'] : null,
             'supplier_id' => !empty($_POST['supplier_id']) ? (int)$_POST['supplier_id'] : null,
             'estimated_value' => !empty($_POST['estimated_value']) ? (float)$_POST['estimated_value'] : null,
-            'rating' => !empty($_POST['rating']) ? (int)$_POST['rating'] : null,
+            'rating' => !empty($_POST['rating']) && is_numeric($_POST['rating']) ? (int)$_POST['rating'] : null, // Vérifier is_numeric
             'notes' => trim($_POST['notes'] ?? '') ?: null,
             // article_ref sera généré par le modèle
         ];
@@ -258,11 +267,14 @@ class ArticlesController extends BaseController {
         $articleData['article_ref'] = $this->articleModel->getNextArticleRef($categoryType['code']);
 
 
+
         // 4. Créer l'article principal en BDD
         $articleId = $this->articleModel->create($articleData);
 
         if (!$articleId) {
             $_SESSION['form_data'] = $_POST;
+            // On pourrait essayer de récupérer l'erreur PDO ici pour un message plus précis
+            // $dbError = $this->articleModel->getLastDbError(); // Si vous implémentez une telle méthode
             Helper::redirect('articles/create', ['danger' => 'Failed to create article (database error).']);
             return;
         }
@@ -313,8 +325,200 @@ class ArticlesController extends BaseController {
             $this->articleModel->syncAssociatedArticles($articleId, $associatedArticleIds);
         }
 
-        Helper::redirect('articles/show/' . $articleId, ['success' => 'Article created successfully!']);
+        //Helper::redirect('articles/show/' . $articleId, ['success' => 'Article created successfully!']);
+		Helper::redirect('articles/log_event/' . $articleId, ['success' => 'Article created! Now, please log its initial status.']);
     }
 
-    // La méthode update() sera très similaire mais avec des vérifications supplémentaires
+    public function log_event(int $articleId): void { // C'est le formulaire pour créer une entrée event_log
+        $article = $this->articleModel->findById($articleId);
+        if (!$article) {
+            Helper::redirect('articles', ['danger' => "Article with ID {$articleId} not found."]);
+            return;
+        }
+
+        //$allStatuses = $this->statusModel->getAll('id', 'ASC'); // Nouveau tri par ID
+
+		$allStatusesRaw = $this->statusModel->getAll('id', 'ASC');
+		$availableStatusesForNewEvent = [];
+
+		// ID ou Nom du statut "Acheté (Nouveau)" (Idéalement, utilisez un ID constant)
+		// $statusNameNewPurchase = 'Acheté (Nouveau)'; 
+		$statusIdNewPurchase = defined('STATUS_ID_NEW_PURCHASE') ? STATUS_ID_NEW_PURCHASE : null; // Si vous définissez une constante pour l'ID
+
+		// Filtrer la liste des statuts pour le formulaire de log_event
+		// Si le statut actuel est "Acheté (Nouveau)", on ne le propose pas comme nouveau statut.
+		if ($article['current_status_id'] == STATUS_ID_NEW_PURCHASE) { // Comparer les IDs
+			foreach ($allStatusesRaw as $status) {
+				if ($status['id'] != STATUS_ID_NEW_PURCHASE) {
+					$availableStatusesForNewEvent[] = $status;
+				}
+			}
+		} else {
+			// Si le statut actuel n'est pas "Acheté (Nouveau)", on peut potentiellement
+			// re-sélectionner le même statut pour juste loguer un événement sans changer de statut,
+			// ou vous pourriez aussi l'exclure si un changement est toujours attendu.
+			// Pour l'instant, on les garde tous sauf "Acheté (Nouveau)" s'il n'est pas l'actuel.
+			 foreach ($allStatusesRaw as $status) {
+				// Optionnel: si vous ne voulez jamais revenir à "Acheté (Nouveau)" après l'avoir quitté
+				// if ($status['name'] !== $statusNameNewPurchase) {
+					$availableStatusesForNewEvent[] = $status;
+				// }
+			}
+			// Ou plus simple pour ce cas : $availableStatusesForNewEvent = $allStatusesRaw;
+		}
+		// Si $availableStatusesForNewEvent est vide (cas peu probable), il faut le gérer.
+
+        $allEventTypes = $this->eventTypeModel->getAll('name', 'ASC');
+        $allItemUsers = $this->itemUserModel->getAll('name', 'ASC');
+        $allSuppliers = $this->supplierModel->getAll('name', 'ASC');
+        $allStorageLocations = $this->storageLocationModel->getAll('full_location_path', 'ASC');
+        
+        // Pour la création d'un "grouped event"
+        // On pourrait lister les grouped_events récents pour permettre de lier à un existant
+        // Pour l'instant, on se concentre sur la création d'un nouveau log.
+
+        $this->renderView('articles/log_event_form', [
+            'pageTitle' => 'Log New Event for: ' . Helper::e($article['name']),
+            'article' => $article, // Contient le statut actuel via $article['status_name']
+			'availableStatuses' => $availableStatusesForNewEvent, // Liste filtrée
+            'allEventTypes' => $allEventTypes,
+            'allItemUsers' => $allItemUsers,
+            'allSuppliers' => $allSuppliers,
+            'allStorageLocations' => $allStorageLocations,
+            'formAction' => APP_URL . '/articles/store_event/' . $articleId,
+            'csrfToken' => $_SESSION[CSRF_TOKEN_NAME]
+        ]);
+    }
+
+    public function store_event(int $articleId): void {
+        $this->verifyCsrf();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Helper::redirect('articles/log_event/' . $articleId);
+            return;
+        }
+
+        $article = $this->articleModel->findById($articleId); // Recharger l'article pour infos à jour
+        if (!$article) {
+            Helper::redirect('articles', ['danger' => "Article not found."]);
+            return;
+        }
+
+        // 1. Validation
+        $validator = new Validation($_POST); // Pas de modèle spécifique pour la validation globale ici
+        $rules = [
+            'new_status_id' => 'required|numeric', // ID du nouveau statut
+            'log_date' => 'required|date_or_empty', // date_or_empty vérifie le format si non vide
+            'log_time' => 'time_or_empty', // Règle à ajouter : regex /^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/
+            // Champs conditionnels (validés ici, mais leur nécessité est vérifiée plus bas)
+            'event_type_id_event' => 'numeric_or_empty',
+            'item_user_id_event' => 'numeric_or_empty',
+            'related_supplier_id_event' => 'numeric_or_empty',
+            'storage_location_id_event' => 'numeric_or_empty',
+            'cost_associated_event' => 'decimal_or_empty:2',
+        ];
+        // Vous devrez ajouter la règle `time_or_empty` à Validation.php
+
+        $newStatusId = (int)($_POST['new_status_id'] ?? 0);
+        $selectedStatus = $this->statusModel->findById($newStatusId); // Récupérer le statut sélectionné
+
+        // Logique pour rendre des champs requis conditionnellement
+        $showEventType = false; $showItemUser = false;
+        $showSupplierPrice = false; $showStorageLocation = false;
+
+        if ($selectedStatus) {
+            $statusName = strtolower($selectedStatus['name']);
+            if (str_contains($statusName, 'utilisation') || str_contains($statusName, 'porté')) {
+                $rules['event_type_id_event'] = 'required|numeric'; // Type d'événement requis pour utilisation
+                $rules['item_user_id_event'] = 'required|numeric';  // Utilisateur requis pour utilisation
+                $showEventType = true; $showItemUser = true;
+            }
+            if (str_contains($statusName, 'nettoyage') || str_contains($statusName, 'réparation') || str_contains($statusName, 'vendu')) {
+                $rules['related_supplier_id_event'] = 'numeric_or_empty'; // Fournisseur optionnel mais possible
+                $rules['cost_associated_event'] = 'decimal_or_empty:2'; // Prix possible
+                $showSupplierPrice = true;
+            }
+            if (str_contains($statusName, 'disponible et rangé')) {
+                $rules['storage_location_id_event'] = 'required|numeric';
+                $showStorageLocation = true;
+            }
+        }
+        $validator->setRules($rules, [
+            'event_type_id_event.required' => 'Event type is required when status is "En cours d\'utilisation".',
+            'item_user_id_event.required' => 'Item user is required when status is "En cours d\'utilisation".',
+            'storage_location_id_event.required' => 'Storage location is required when status is "Disponible et rangé".'
+        ]);
+
+        if (!$validator->validate()) {
+            $_SESSION['form_data_event'] = $_POST;
+            $_SESSION['form_errors_event'] = $validator->getErrors();
+            Helper::redirect('articles/log_event/' . $articleId);
+            return;
+        }
+
+        // 2. Préparer les données pour event_log
+        $eventData = [
+            // article_id sera ajouté par le modèle recordArticleEvent
+            'log_date' => $_POST['log_date'],
+            'log_time' => !empty(trim($_POST['log_time'] ?? '')) ? trim($_POST['log_time']) : null,
+            'status_id' => $newStatusId,
+            'event_type_id' => ($showEventType && !empty($_POST['event_type_id_event'])) ? (int)$_POST['event_type_id_event'] : null,
+            'event_name' => trim($_POST['event_name_event'] ?? '') ?: null,
+            'description' => trim($_POST['description_event'] ?? '') ?: null,
+            'item_user_id' => ($showItemUser && !empty($_POST['item_user_id_event'])) ? (int)$_POST['item_user_id_event'] : null,
+            'related_supplier_id' => ($showSupplierPrice && !empty($_POST['related_supplier_id_event'])) ? (int)$_POST['related_supplier_id_event'] : null,
+            'cost_associated' => ($showSupplierPrice && is_numeric($_POST['cost_associated_event'] ?? '')) ? (float)$_POST['cost_associated_event'] : null,
+            'currency' => (!empty($_POST['currency_event']) && $showSupplierPrice) ? strtoupper(trim($_POST['currency_event'])) : 'EUR',
+            // created_by_app_user_id à gérer avec l'authentification
+        ];
+
+        // 3. Préparer les données pour mettre à jour l'article principal
+        $articleUpdateData = [
+            'current_status_id' => $newStatusId,
+            'current_storage_location_id' => ($showStorageLocation && !empty($_POST['storage_location_id_event'])) ? (int)$_POST['storage_location_id_event'] : $article['current_storage_location_id'], // Conserver l'ancien si pas rangé
+        ];
+         if ($articleUpdateData['current_storage_location_id'] === $article['current_storage_location_id'] && !$showStorageLocation) {
+            // Si le statut n'est PAS "rangé" ET que la localisation n'a pas changé dans le form (car champ caché ou non rempli)
+            // alors on veut explicitement mettre la localisation à NULL ou la conserver.
+            // Si on veut la vider quand l'article n'est plus rangé :
+            $articleUpdateData['current_storage_location_id'] = null;
+        }
+
+
+        // Gérer last_worn_at et times_worn si le statut est une "utilisation"
+        if ($selectedStatus && (str_contains(strtolower($selectedStatus['name']), 'utilisation') || str_contains(strtolower($selectedStatus['name']), 'porté'))) {
+            $articleUpdateData['last_worn_at'] = $_POST['log_date'] . (!empty($eventData['log_time']) ? ' ' . $eventData['log_time'] : ' 00:00:00'); // Utiliser la date de l'événement
+            $articleUpdateData['increment_times_worn'] = true; // Le modèle gérera l'incrémentation
+        }
+
+        // 4. Gérer les images d'événement
+        $eventImageFiles = $_FILES['event_images'] ?? []; // Doit être `name="event_images[]"` dans le form
+
+        // 5. Gérer la création/liaison d'un événement groupé (simplifié pour l'instant)
+        $groupedEventId = null;
+        if (!empty($_POST['link_to_grouped_event_id'])) { // Si on lie à un existant
+            $groupedEventId = (int)$_POST['link_to_grouped_event_id'];
+        } elseif (!empty($_POST['create_new_grouped_event_name']) && $showEventType) { // Si on crée un nouveau
+            $eventLogModel = new EventLog(); // Pour appeler createGroupedEvent
+            $groupData = [
+                'group_event_name' => trim($_POST['create_new_grouped_event_name']),
+                'group_event_date' => $_POST['log_date'],
+                'group_event_time' => $eventData['log_time'],
+                'notes' => trim($_POST['grouped_event_notes'] ?? '') ?: null
+            ];
+            $groupedEventId = $eventLogModel->createGroupedEvent($groupData);
+            if (!$groupedEventId) {
+                 // Gérer l'erreur de création du groupe, mais continuer pour le log principal ?
+                error_log("Failed to create grouped event.");
+            }
+        }
+
+
+        if ($this->articleModel->recordArticleEvent($articleId, $eventData, $articleUpdateData, $eventImageFiles, $groupedEventId)) {
+            Helper::redirect('articles/show/' . $articleId, ['success' => 'Article status updated and event logged.']);
+        } else {
+            $_SESSION['form_data_event'] = $_POST;
+            // Les erreurs de validation devraient déjà être dans $_SESSION['form_errors_event']
+            Helper::redirect('articles/log_event/' . $articleId, ['danger' => 'Failed to log event or update article.']);
+        }
+    }
 }
