@@ -369,6 +369,66 @@ class Validation {
         return true;
     }
 
+
+    protected function validateNumericOrEmpty(string $field, $value, array $params): bool {
+        if (empty($value) && $value !== '0' && $value !== 0) { // Permettre '0'
+            return true;
+        }
+        if (!is_numeric($value)) {
+            $this->addError($field, "The {$field} field must be a number.");
+            return false;
+        }
+        return true;
+    }
+
+    protected function validateMinNumeric(string $field, $value, array $params): bool {
+        if (empty($value) && $value !== '0' && $value !== 0) return true; // Ne pas valider si vide
+        $min = (float)($params[0] ?? 0);
+        if (!is_numeric($value) || (float)$value < $min) {
+            $this->addError($field, "The {$field} must be at least {$min}.");
+            return false;
+        }
+        return true;
+    }
+
+    protected function validateMaxNumeric(string $field, $value, array $params): bool {
+        if (empty($value) && $value !== '0' && $value !== 0) return true;
+        $max = (float)($params[0] ?? PHP_INT_MAX);
+        if (!is_numeric($value) || (float)$value > $max) {
+            $this->addError($field, "The {$field} may not be greater than {$max}.");
+            return false;
+        }
+        return true;
+    }
+
+    protected function validateDateOrEmpty(string $field, $value, array $params): bool {
+        if (empty($value)) {
+            return true;
+        }
+        // Tente de parser la date, accepte YYYY-MM-DD
+        $d = \DateTime::createFromFormat('Y-m-d', $value);
+        if ($d && $d->format('Y-m-d') === $value) {
+            return true;
+        }
+        $this->addError($field, "The {$field} is not a valid date (YYYY-MM-DD).");
+        return false;
+    }
+
+    protected function validateDecimalOrEmpty(string $field, $value, array $params): bool {
+        if (empty($value) && (string)$value !== '0' && (string)$value !== '0.0' && (string)$value !== '0.00') { // Permettre 0, 0.0, 0.00
+            return true;
+        }
+        $decimals = isset($params[0]) ? (int)$params[0] : 2; // Nombre de décimales par défaut
+        // Regex pour un nombre décimal (positif ou négatif, point comme séparateur)
+        // Permet un nombre optionnel de décimales jusqu'à $decimals
+        $pattern = '/^-?\d+(\.\d{1,' . $decimals . '})?$/';
+        if (!preg_match($pattern, (string)$value)) {
+             $this->addError($field, "The {$field} must be a valid decimal number with up to {$decimals} decimal places.");
+            return false;
+        }
+        return true;
+    }
+	
     // Add more validation methods as needed (numeric, alpha, date, etc.)
 }
 

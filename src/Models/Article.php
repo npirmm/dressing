@@ -57,16 +57,22 @@ class Article {
     }
 
     public function getAssociatedArticleIds(int $articleId): array {
-        // Récupère les IDs des articles associés à $articleId
         $sql = "SELECT 
                     CASE
-                        WHEN article_id_1 = :article_id THEN article_id_2
+                        WHEN article_id_1 = :article_id_case THEN article_id_2
                         ELSE article_id_1
                     END as associated_id
                 FROM associated_articles
-                WHERE article_id_1 = :article_id OR article_id_2 = :article_id";
-        $stmt = $this->dbInstance->query($sql, [':article_id' => $articleId]);
-        return $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+                WHERE article_id_1 = :article_id_where1 OR article_id_2 = :article_id_where2";
+        
+        $params = [
+            ':article_id_case' => $articleId,
+            ':article_id_where1' => $articleId,
+            ':article_id_where2' => $articleId
+        ];
+        
+        $stmt = $this->dbInstance->query($sql, $params);
+        return $stmt ? $stmt->fetchAll(\PDO::FETCH_COLUMN) : []; // Assurez-vous d'avoir \PDO ici
     }
 
     /**
@@ -143,4 +149,111 @@ class Article {
         // 2. Formater avec des zéros en tête (ex: 00001)
         return $categoryTypeCode . str_pad((string)$nextNum, 5, '0', STR_PAD_LEFT);
     }
+
+    public function create(array $data): int|false {
+        $sql = "INSERT INTO {$this->tableName} (
+                    name, article_ref, description, season, category_type_id, brand_id, `condition`, 
+                    primary_color_id, secondary_color_id, material_id, size, weight_grams, 
+                    current_storage_location_id, current_status_id, purchase_date, purchase_price, 
+                    supplier_id, estimated_value, rating, notes, 
+                    created_at, updated_at
+                ) VALUES (
+                    :name, :article_ref, :description, :season, :category_type_id, :brand_id, :condition, 
+                    :primary_color_id, :secondary_color_id, :material_id, :size, :weight_grams, 
+                    :current_storage_location_id, :current_status_id, :purchase_date, :purchase_price, 
+                    :supplier_id, :estimated_value, :rating, :notes, 
+                    NOW(), NOW()
+                )";
+        
+        // Note: `condition` est un mot-clé SQL, donc il est entouré de backticks dans la requête
+        // mais pas dans les clés de $data car ce sont des clés de tableau PHP.
+        $params = [
+            ':name' => $data['name'],
+            ':article_ref' => $data['article_ref'],
+            ':description' => $data['description'],
+            ':season' => $data['season'],
+            ':category_type_id' => $data['category_type_id'],
+            ':brand_id' => $data['brand_id'],
+            ':condition' => $data['condition'],
+            ':primary_color_id' => $data['primary_color_id'],
+            ':secondary_color_id' => $data['secondary_color_id'],
+            ':material_id' => $data['material_id'],
+            ':size' => $data['size'],
+            ':weight_grams' => $data['weight_grams'],
+            ':current_storage_location_id' => $data['current_storage_location_id'],
+            ':current_status_id' => $data['current_status_id'],
+            ':purchase_date' => $data['purchase_date'],
+            ':purchase_price' => $data['purchase_price'],
+            ':supplier_id' => $data['supplier_id'],
+            ':estimated_value' => $data['estimated_value'],
+            ':rating' => $data['rating'],
+            ':notes' => $data['notes']
+        ];
+
+        $stmt = $this->dbInstance->query($sql, $params);
+        if ($stmt) {
+            $id = (int)$this->dbInstance->lastInsertId();
+            Helper::logAction(strtoupper($this->tableName).'_CREATE', ucfirst($this->tableName), $id, "Article '{$data['name']}' ({$data['article_ref']}) created.");
+            return $id;
+        }
+        return false;
+    }
+
+    public function addImage(int $articleId, string $imagePath, ?string $caption = null, bool $isPrimary = false, int $sortOrder = 0): bool {
+        // Si cette image est marquée comme primaire, s'assurer qu'aucune autre n'est primaire pour cet article
+        if ($isPrimary) {
+            $this->dbInstance->query("UPDATE article_images SET is_primary = FALSE WHERE article_id = :article_id", [':article_id' => $articleId]);
+        }
+
+        $sql = "INSERT INTO article_images (article_id, image_path, caption, is_primary, sort_order) 
+                VALUES (:article_id, :image_path, :caption, :is_primary, :sort_order)";
+        $stmt = $this->dbInstance->query($sql, [
+            ':article_id' => $articleId,
+            ':image_path' => $imagePath,
+            ':caption' => $caption,
+            ':is_primary' => (int)$isPrimary, // Convertir booléen en int pour la BDD
+            ':sort_order' => $sortOrder
+        ]);
+        return $stmt !== false;
+    }
+
+    public function syncAssociatedArticles(int $articleId, array $associatedIds): void {
+        $pdo = $this->dbInstance->getConnection(); // Pour les transactions si besoin, ou juste pour exec multiple
+        
+        // 1. Supprimer les anciennes associations pour cet article
+        // Attention: si la relation est symétrique, il faut supprimer dans les deux sens ou avoir une convention
+        // Pour A-B, on stocke une seule ligne. (article_id_1 < article_id_2 est une convention)
+        // Ici, on supprime toutes les lignes où $articleId apparaît.
+        $this->dbInstance->query("DELETE FROM associated_articles WHERE article_id_1 = :id OR article_id_2 = :id", [':id' => $articleId]);
+
+        // 2. Ajouter les nouvelles associations
+        if (!empty($associatedIds)) {
+            $sqlInsert = "INSERT INTO associated_articles (article_id_1, article_id_2) VALUES (:id1, :id2)";
+            foreach ($associatedIds as $assocId) {
+                $assocId = (int)$assocId;
+                if ($articleId === $assocId) continue; // Ne pas s'associer à soi-même
+
+                // Pour éviter les doublons (A-B et B-A) et les erreurs de clé dupliquée,
+                // on stocke toujours avec le plus petit ID en premier.
+                $id1 = min($articleId, $assocId);
+                $id2 = max($articleId, $assocId);
+                
+                // Vérifier si l'association existe déjà (pas strictement nécessaire si la PK empêche)
+                // $checkSql = "SELECT COUNT(*) FROM associated_articles WHERE article_id_1 = :id1 AND article_id_2 = :id2";
+                // $stmtCheck = $this->dbInstance->query($checkSql, [':id1' => $id1, ':id2' => $id2]);
+                // if ($stmtCheck && $stmtCheck->fetchColumn() == 0) {
+                   try {
+                       $this->dbInstance->query($sqlInsert, [':id1' => $id1, ':id2' => $id2]);
+                   } catch (\PDOException $e) {
+                       // Ignorer les erreurs de clé dupliquée si on essaie d'insérer une paire qui existe déjà
+                       // (ce qui ne devrait pas arriver avec la suppression préalable, sauf en cas de concurrence)
+                       if ($e->getCode() != 23000) { // 23000 est le code SQLSTATE pour violation de contrainte d'intégrité
+                           throw $e; // Relancer les autres erreurs
+                       }
+                   }
+                // }
+            }
+        }
+    }
+    // update() et delete() viendront après
 }
