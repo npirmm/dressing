@@ -381,3 +381,11 @@ CREATE TABLE `event_log_grouped_event_link` (
 -- Ajout d'un index sur article_id dans event_log pour des recherches plus rapides par article
 ALTER TABLE `event_log` ADD INDEX `idx_event_log_article_id` (`article_id`);
 ALTER TABLE `event_log` ADD INDEX `idx_event_log_date` (`log_date`);
+
+CREATE TABLE `article_suitable_event_types` (
+  `article_id` INT UNSIGNED NOT NULL,
+  `event_type_id` INT UNSIGNED NOT NULL,
+  PRIMARY KEY (`article_id`, `event_type_id`),
+  FOREIGN KEY (`article_id`) REFERENCES `articles`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`event_type_id`) REFERENCES `event_types`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -8,6 +8,7 @@ $filterBrand = $_GET['filter_brand_id'] ?? '';
 $filterStatus = $_GET['filter_status_id'] ?? '';
 $filterSeason = $_GET['filter_season'] ?? '';
 $filterCondition = $_GET['filter_condition'] ?? '';
+$filterBaseColorCategory = $_GET['filter_base_color_category'] ?? ''; 
 
 // Récupérer les données pour les listes déroulantes des filtres (besoin de les passer depuis le contrôleur)
 // $allCategoriesForFilter, $allBrandsForFilter, $allStatusesForFilter, $allSeasonOptions, $allConditionOptions
@@ -72,12 +73,17 @@ $baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', strtok($_SERVER['REQUES
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2"> <!-- {/* Ou autre taille de colonne */} -->
+                <label for="filter_base_color_category" class="form-label">Base Color</label>
+                <input type="text" class="form-control form-control-sm" id="filter_base_color_category" name="filter_base_color_category" value="<?php echo Helper::e($filterBaseColorCategory); ?>">
+            </div>
+
+            <div class="col-md-2"> <!-- {/* Ou autre taille de colonne */} -->
                 <label for="filter_season" class="form-label">Season</label>
                 <select class="form-select form-select-sm" id="filter_season" name="filter_season">
                     <option value="">All</option>
                      <?php foreach ($allSeasonOptionsForFilter ?? [] as $season): ?>
-                        <option value="<?php echo $season; ?>" <?php echo ($filterSeason == $season) ? 'selected' : ''; ?>>
+                        <option value="<?php echo Helper::e($season); ?>" <?php echo ($filterSeason == $season) ? 'selected' : ''; ?>>
                             <?php echo Helper::e(ucfirst($season)); ?>
                         </option>
                     <?php endforeach; ?>
@@ -112,22 +118,22 @@ $baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', strtok($_SERVER['REQUES
         <small class="text-muted">Showing <?php echo count($articles); ?> of <?php echo $totalArticles ?? count($articles); ?> articles.</small>
         <!-- {/* Pagination (à venir) */} -->
     </div>
-	<table class="table table-striped table-hover table-sm" id="articlesTable">
-		<thead class="table-dark">
-			<tr>
-				<th>Img</th>
-				<th><?php echo Helper::generateSortLink('a.article_ref', 'Ref', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-				<th><?php echo Helper::generateSortLink('a.name', 'Name', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-				<th><?php echo Helper::generateSortLink('ct.name', 'Category', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-				<th><?php echo Helper::generateSortLink('b.name', 'Brand', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-				
-				<th>Color</th>
-				<th><?php echo Helper::generateSortLink('st.name', 'Status', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-				<th><?php echo Helper::generateSortLink('a.updated_at', 'Last Upd.', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
-				<th>Actions</th>
-			</tr>
-		</thead>
-		<tbody>
+    <table class="table table-striped table-hover table-sm" id="articlesTable">
+        <thead class="table-dark">
+            <tr>
+                <th>Img</th>
+                <th><?php echo Helper::generateSortLink('a.article_ref', 'Ref', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('a.name', 'Name', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('ct.name', 'Category', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('b.name', 'Brand', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('pc.base_color_category', 'Base Color', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th> 
+                <th><?php echo Helper::generateSortLink('a.season', 'Season', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th> 
+                <th><?php echo Helper::generateSortLink('st.name', 'Status', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th><?php echo Helper::generateSortLink('a.last_worn_at', 'Last Worn', $currentSortColumn, $currentSortOrder, $baseUrl); ?></th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
             <?php foreach ($articles as $item): ?>
                 <tr>
                     <td>
@@ -148,13 +154,18 @@ $baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', strtok($_SERVER['REQUES
                     <td><?php echo Helper::e($item['category_type_name'] ?? 'N/A'); ?></td>
                     <td><?php echo Helper::e($item['brand_name'] ?? 'N/A'); ?></td>
                     <!-- <td><?php echo Helper::e($item['size'] ?? 'N/A'); ?></td> Plus besoin -->
-                    <td>
-                        <?php if (!empty($item['primary_color_hex'])): ?>
-                            <span style="display:inline-block; width: 20px; height:20px; background-color:<?php echo Helper::e($item['primary_color_hex']); ?>; border:1px solid #ccc; border-radius: 50%; vertical-align: middle;"></span>
+					<td>
+                        <?php if (!empty($item['primary_base_color_category'])): ?>
+                            <?php // Optionnel: petit carré de la couleur primaire réelle à côté de la catégorie de base
+                                if (!empty($item['primary_color_hex'])): ?>
+                                    <span style="display: inline-block; width: 0.8em; height: 0.8em; background-color: <?php echo Helper::e($item['primary_color_hex']); ?>; border: 1px solid #ccc; margin-right: 3px; vertical-align: middle;"></span>
+                                <?php endif; ?>
+                            <?php echo Helper::e(ucfirst($item['primary_base_color_category'])); ?>
                         <?php else: echo 'N/A'; endif; ?>
-                    </td>
+                    </td> 
+                    <td><?php echo Helper::e(ucfirst($item['season'] ?? 'N/A')); ?></td> 
                     <td><?php echo Helper::e($item['status_name'] ?? 'N/A'); ?></td>
-					<td><?php echo $item['updated_at'] ? Helper::e(date('Y-m-d', strtotime($item['updated_at']))) : 'N/A'; ?></td>
+                    <td><?php echo $item['last_worn_at'] ? Helper::e(date('Y-m-d', strtotime($item['last_worn_at']))) : 'Never'; ?></td>
 					<td>
 						<a href="<?php echo APP_URL; ?>/articles/show/<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-info" title="View Details"><i class="bi bi-eye"></i></a>
 						<a href="<?php echo APP_URL; ?>/articles/edit/<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-primary" title="Edit Article"><i class="bi bi-pencil-square"></i></a>

@@ -377,6 +377,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const catTerm = articleCategorySearch ? articleCategorySearch.value.toLowerCase() : '';
         const brandTerm = articleBrandSearch ? articleBrandSearch.value.toLowerCase() : '';
         const statusTerm = articleStatusSearch ? articleStatusSearch.value.toLowerCase() : '';
+		const baseColorCatTerm = baseColorCategorySearch ? baseColorCategorySearch.value.toLowerCase() : '';
 
         const tbody = articlesTable.getElementsByTagName('tbody')[0];
         if (!tbody) return;
@@ -388,6 +389,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const catCell = rows[i].getElementsByTagName('td')[3];      // Category
             const brandCell = rows[i].getElementsByTagName('td')[4];    // Brand
             const statusCell = rows[i].getElementsByTagName('td')[7];   // Status
+            const baseColorCatCell = rows[i].getElementsByTagName('td')[5]; // Trouvez le bon index (probablement 5 ou 6)
+            const seasonCell = rows[i].getElementsByTagName('td')[6]; // Trouvez le bon index
             
             let match = true;
 
@@ -406,15 +409,27 @@ document.addEventListener('DOMContentLoaded', function () {
             if (match && statusTerm && statusCell) {
                 if ((statusCell.textContent || statusCell.innerText || "").trim().toLowerCase().indexOf(statusTerm) === -1) match = false;
             }
+            if (match && baseColorCatTerm && baseColorCatCell) {
+                if ((baseColorCatCell.textContent || baseColorCatCell.innerText || "").trim().toLowerCase().indexOf(baseColorCatTerm) === -1) match = false;
+            }
+            if (match && seasonSearch && seasonSearch.value.trim() !== '' && seasonCell) { // seasonSearch est l'ID de votre <select> pour le filtre season
+                // Pour un select, la comparaison est directe sur la valeur sélectionnée
+                // Ce filtre JS est plus pour les input text. Le filtre serveur est prioritaire pour les selects.
+                // On peut le laisser ou le retirer si le filtre serveur sur season est suffisant.
+                // Pour l'instant, on suppose qu'on filtre le texte affiché :
+                if ((seasonCell.textContent || seasonCell.innerText || "").trim().toLowerCase().indexOf(seasonSearch.value.toLowerCase()) === -1 && seasonSearch.value !== '') match = false;
+            }
             
             rows[i].style.display = match ? '' : 'none';
         }
     }
+
     if (articlesTable) {
         if (articleNameSearch) articleNameSearch.addEventListener('keyup', filterArticlesTable);
         if (articleCategorySearch) articleCategorySearch.addEventListener('keyup', filterArticlesTable);
         if (articleBrandSearch) articleBrandSearch.addEventListener('keyup', filterArticlesTable);
         if (articleStatusSearch) articleStatusSearch.addEventListener('keyup', filterArticlesTable);
+		if (baseColorCategorySearch) baseColorCategorySearch.addEventListener('keyup', filterArticlesTable);
     } else {
         if (articleNameSearch) console.warn('#articlesTable not found but search fields exist');
     }

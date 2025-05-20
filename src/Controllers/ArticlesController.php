@@ -35,6 +35,7 @@ class ArticlesController extends BaseController {
     private EventType $eventTypeModel; 
     private ItemUser $itemUserModel;   
 
+
     public function __construct() {
         $this->articleModel = new Article();
         if (!defined('ARTICLE_IMAGE_PATH')) {
@@ -53,6 +54,7 @@ class ArticlesController extends BaseController {
         $this->supplierModel = new Supplier();
         $this->eventTypeModel = new EventType();
         $this->itemUserModel = new ItemUser();
+
     }
 
     public function index(): void {
@@ -66,7 +68,8 @@ class ArticlesController extends BaseController {
             'status_id' => trim($_GET['filter_status_id'] ?? ''),
             'season' => trim($_GET['filter_season'] ?? ''),
             'condition' => trim($_GET['filter_condition'] ?? ''),
-            // Ajoutez d'autres clés de filtre ici
+			'base_color_category' => trim($_GET['filter_base_color_category'] ?? '')
+			// Ajoutez d'autres clés de filtre ici
         ];
 
         // Pagination
@@ -107,6 +110,7 @@ class ArticlesController extends BaseController {
             'filterStatus' => $filters['status_id'],
             'filterSeason' => $filters['season'],
             'filterCondition' => $filters['condition'],
+			'filterBaseColorCategory' => $filters['base_color_category'],
 
             // Données pour les selects des filtres
             'allCategoriesForFilter' => $allCategoriesForFilter,
@@ -154,6 +158,7 @@ class ArticlesController extends BaseController {
         $formAction = APP_URL . '/articles/store';
         $articleImages = []; // Pour les images existantes en mode édition
         $selectedAssociatedArticleIds = []; // Pour les articles associés en mode édition
+		$selectedSuitableEventTypeIds = [];
 
         if ($id !== null) {
             $article = $this->articleModel->findById($id); // findById récupère déjà les images et IDs associés
@@ -165,6 +170,7 @@ class ArticlesController extends BaseController {
             $formAction = APP_URL . '/articles/update/' . $id;
             $articleImages = $article['images'] ?? []; // Récupéré par findById
             $selectedAssociatedArticleIds = $article['associated_article_ids'] ?? []; // Récupéré par findById
+			$selectedSuitableEventTypeIds = $article['suitable_event_type_ids'] ?? [];
         }
 
         // Charger les données pour les listes déroulantes
@@ -172,7 +178,6 @@ class ArticlesController extends BaseController {
         $categoryTypes = $this->categoryTypeModel->getAll('name', 'ASC');
         $colors = $this->colorModel->getAll('name', 'ASC');
         $materials = $this->materialModel->getAll('name', 'ASC');
-        // Assurez-vous d'avoir un modèle Status.php et une méthode getAll()
         $statuses = $this->statusModel->getAll('id', 'ASC'); // Nouveau tri par ID
         $storageLocations = $this->storageLocationModel->getAll('full_location_path', 'ASC'); // Trier par full_path
         $suppliers = $this->supplierModel->getAll('name', 'ASC');
@@ -187,6 +192,7 @@ class ArticlesController extends BaseController {
         $seasonOptions = ['Printemps', 'Été', 'Automne', 'Hiver', 'Toutes saisons', 'Entre-saisons'];
         $conditionOptions = ['neuf', 'excellent', 'bon état', 'médiocre', 'à réparer/retoucher'];
 
+		$allEventTypesForForm = $this->eventTypeModel->getAll('name', 'ASC');
 
         $this->renderView('articles/form', [
             'pageTitle' => $pageTitle,
@@ -206,6 +212,9 @@ class ArticlesController extends BaseController {
             'suppliers' => $suppliers,
             'allArticlesForAssociation' => $allArticlesForAssociation,
             'selectedAssociatedArticleIds' => $selectedAssociatedArticleIds,
+			
+			'allEventTypesForForm' => $allEventTypesForForm, 
+			'selectedSuitableEventTypeIds' => $selectedSuitableEventTypeIds, 
 
             // Options pour enums
             'seasonOptions' => $seasonOptions,
@@ -329,44 +338,66 @@ class ArticlesController extends BaseController {
         }
 
         // 5. Gérer l'upload des images
-        $uploadedImagePaths = [];
-        if (isset($_FILES['article_images'])) {
+        $uploadedImagePathsForDb = []; // Pour stocker les noms de fichiers pour la BDD
+
+        if (isset($_FILES['article_images']) && !empty($_FILES['article_images']['name'][0])) { // Vérifier si au moins un fichier est soumis
             $imageUploader = new ImageUploader($this->articleImageUploadPath); // 'articles/'
             $files = $_FILES['article_images'];
-            $fileCount = count($files['name']);
-
-            for ($i = 0; $i < $fileCount; $i++) {
-                if ($files['error'][$i] === UPLOAD_ERR_OK) {
-                    // Construire un nom de fichier unique basé sur article_ref et un index/timestamp
-                    // Ex: VRO00001_1.jpg, VRO00001_2.jpg
-                    $imageFileNameWithoutExtension = str_replace(' ', '_', $articleData['article_ref']) . '_' . ($i + 1) . '_' . time();
-                    
-                    // Simuler la structure de fichier pour la méthode upload
-                    $currentFile = [
-                        'name' => $files['name'][$i],
-                        'type' => $files['type'][$i],
-                        'tmp_name' => $files['tmp_name'][$i],
-                        'error' => $files['error'][$i],
-                        'size' => $files['size'][$i]
-                    ];
-
-                    if ($imageUploader->upload($currentFile, $imageFileNameWithoutExtension)) {
-                        $dbImagePath = $imageUploader->getUploadedFileName();
-                        // Enregistrer l'image dans la table article_images
-                        $isPrimary = ($i == 0 && empty($_POST['primary_image_id'])); // Première image uploadée est primaire par défaut si aucune sélectionnée
-                        $this->articleModel->addImage($articleId, $dbImagePath, null, $isPrimary);
-                        $uploadedImagePaths[] = $dbImagePath; // Pour rollback si besoin
-                    } else {
-                        // Gérer les erreurs d'upload pour cette image spécifique
-                        // Peut-être accumuler les erreurs et les afficher
-                        error_log("Failed to upload image: " . $files['name'][$i] . " Errors: " . implode(', ', $imageUploader->getErrors()));
-                        // On continue avec les autres images
+            
+            // Réorganiser $_FILES pour un traitement plus facile si multiple
+            $imagesToProcess = [];
+            if (is_array($files['name'])) {
+                for ($i = 0; $i < count($files['name']); $i++) {
+                    if ($files['error'][$i] === UPLOAD_ERR_OK) { // Traiter seulement les uploads réussis
+                        $imagesToProcess[] = [
+                            'name' => $files['name'][$i],
+                            'type' => $files['type'][$i],
+                            'tmp_name' => $files['tmp_name'][$i],
+                            'error' => $files['error'][$i],
+                            'size' => $files['size'][$i]
+                        ];
+                    } elseif ($files['error'][$i] !== UPLOAD_ERR_NO_FILE) {
+                        // Loguer les erreurs d'upload initiales
+                        error_log("Upload error for file " . $files['name'][$i] . ": code " . $files['error'][$i]);
+                         // Vous pourriez ajouter ces erreurs à un tableau pour les afficher à l'utilisateur
+                         // $_SESSION['form_errors']['article_images'][] = "Error uploading " . $files['name'][$i] . ": Code " . $files['error'][$i];
                     }
-                } elseif ($files['error'][$i] !== UPLOAD_ERR_NO_FILE) {
-                     error_log("Upload error for file " . $files['name'][$i] . ": code " . $files['error'][$i]);
+                }
+            } elseif ($files['error'] === UPLOAD_ERR_OK) { // Cas d'un seul fichier (moins courant avec `multiple`)
+                 $imagesToProcess[] = $files;
+            }
+
+
+            foreach ($imagesToProcess as $index => $currentFile) {
+                // Construire un nom de fichier unique basé sur article_ref et un index/timestamp
+                $imageFileNameWithoutExtension = str_replace([' ', '/'], '_', $articleData['article_ref']) . '_' . ($index + 1) . '_' . time();
+                
+                if ($imageUploader->upload($currentFile, $imageFileNameWithoutExtension)) {
+                    $dbImagePath = $imageUploader->getUploadedFileName();
+                    $isPrimary = ($index == 0); // La première image uploadée avec succès est primaire
+                    // La caption pourrait venir d'un champ de formulaire séparé si vous en ajoutez un par image
+                    $this->articleModel->addImage($articleId, $dbImagePath, null /* caption */, $isPrimary, $index /* sort_order */);
+                    $uploadedImagePathsForDb[] = $dbImagePath;
+                } else {
+                    error_log("Failed to process/move uploaded file: " . $currentFile['name'] . " Errors: " . implode(', ', $imageUploader->getErrors()));
+                    // Ajouter à form_errors pour l'affichage
+                    $_SESSION['form_errors']['article_images'][] = "Failed to upload " . Helper::e($currentFile['name']) . ": " . Helper::e(implode(', ', $imageUploader->getErrors()));
                 }
             }
+            // Si des erreurs d'upload ont eu lieu, on pourrait vouloir rediriger avec ces erreurs
+            if (!empty($_SESSION['form_errors']['article_images'])) {
+                // Si la création de l'article a réussi mais pas les images, l'article existe.
+                // On redirige vers l'édition pour que l'utilisateur puisse réessayer d'uploader.
+                // Ou on pourrait décider de rollback la création de l'article si les images sont critiques.
+                // Pour l'instant, on continue et on redirige vers log_event. Les erreurs d'image seront en session.
+            }
         }
+
+		// 5bis. Gérer les types d'événements adaptés
+		$suitableEventTypeIds = $_POST['suitable_event_type_ids'] ?? [];
+		if (!empty($suitableEventTypeIds)) {
+			$this->articleModel->syncSuitableEventTypes($articleId, $suitableEventTypeIds);
+		}
 
         // 6. Gérer les articles associés
         $associatedArticleIds = $_POST['associated_article_ids'] ?? [];

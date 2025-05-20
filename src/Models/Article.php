@@ -10,7 +10,8 @@ use PDO;
 class Article {
     private Database $dbInstance;
     private string $tableName = 'articles';
-
+    private string $pivotSuitableEventTypesTable = 'article_suitable_event_types';
+	
     public function __construct() {
         $this->dbInstance = Database::getInstance();
     }
@@ -42,12 +43,17 @@ class Article {
         $article = $stmt ? $stmt->fetch() : false;
 
         if ($article) {
-            // Récupérer les images associées
             $article['images'] = $this->getArticleImages($id);
-            // Récupérer les articles associés (juste les IDs pour l'instant, on affinera)
             $article['associated_article_ids'] = $this->getAssociatedArticleIds($id);
+            $article['suitable_event_type_ids'] = $this->getSuitableEventTypeIds($id); // NOUVEAU
         }
         return $article;
+    }
+
+    public function getSuitableEventTypeIds(int $articleId): array {
+        $sql = "SELECT event_type_id FROM {$this->pivotSuitableEventTypesTable} WHERE article_id = :article_id";
+        $stmt = $this->dbInstance->query($sql, [':article_id' => $articleId]);
+        return $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
     }
 
     public function getArticleImages(int $articleId): array {
@@ -199,6 +205,27 @@ class Article {
         return false;
     }
 
+    // Nouvelle méthode pour synchroniser les types d'événements adaptés
+    public function syncSuitableEventTypes(int $articleId, array $eventTypeIds): void {
+        // 1. Supprimer les anciennes associations
+        $this->dbInstance->query("DELETE FROM {$this->pivotSuitableEventTypesTable} WHERE article_id = :article_id", [':article_id' => $articleId]);
+
+        // 2. Ajouter les nouvelles associations
+        if (!empty($eventTypeIds)) {
+            $sqlInsert = "INSERT INTO {$this->pivotSuitableEventTypesTable} (article_id, event_type_id) VALUES (:article_id, :event_type_id)";
+            foreach ($eventTypeIds as $eventTypeId) {
+                try {
+                    $this->dbInstance->query($sqlInsert, [
+                        ':article_id' => $articleId,
+                        ':event_type_id' => (int)$eventTypeId
+                    ]);
+                } catch (\PDOException $e) {
+                    if ($e->getCode() != 23000) throw $e; // Ignorer les erreurs de clé dupliquée (ne devrait pas arriver avec la suppression)
+                }
+            }
+        }
+    }
+
     public function addImage(int $articleId, string $imagePath, ?string $caption = null, bool $isPrimary = false, int $sortOrder = 0): bool {
         // Si cette image est marquée comme primaire, s'assurer qu'aucune autre n'est primaire pour cet article
         if ($isPrimary) {
@@ -282,6 +309,11 @@ class Article {
             // created_by_app_user_id sera géré par EventLogModel si non fourni explicitement
 
             $eventLogId = $eventLogModel->create($eventData);
+			
+			if ($eventLogId && isset($eventData['event_type_id']) && !empty($eventData['event_type_id'])) {
+				$this->ensureSuitableEventTypeExists($articleId, (int)$eventData['event_type_id']);
+			}
+			
             if (!$eventLogId) {
                 $pdo->rollBack();
                 error_log("Failed to insert into event_log for article_id: {$articleId}");
@@ -375,7 +407,8 @@ class Article {
 			'ct.name', // Nom du CategoryType (alias 'ct')
 			'b.name',  // Nom du Brand (alias 'b')
 			'st.name', // Nom du Status (alias 'st')
-			'a.created_at', 'a.updated_at', 'a.last_worn_at', 'a.times_worn'
+			'a.created_at', 'a.updated_at', 'a.last_worn_at', 'a.times_worn',
+			'pc.base_color_category' // NOUVEAU : pour trier par la catégorie de couleur de base de la couleur primaire
 			// Note: 'sl.full_location_path' n'est pas dans la requête SELECT de getAllPaginated, donc on ne peut pas trier dessus ici.
 		];
 		
@@ -404,15 +437,16 @@ class Article {
 						 ct.name as category_type_name, /* ct.name */
 						 b.name as brand_name, /* b.name */
 						 pc.hex_code as primary_color_hex,
+						 pc.base_color_category as primary_base_color_category, /* NOUVEAU ou s'assurer qu'il est là */
 						 st.name as status_name, /* st.name */
 						 a.created_at, a.updated_at, a.last_worn_at, a.times_worn, /* Ajout des champs pour tri */
 						 (SELECT image_path FROM article_images WHERE article_id = a.id AND is_primary = TRUE LIMIT 1) as primary_image_path";
         
         $fromAndJoins = "FROM {$this->tableName} a
-                         LEFT JOIN categories_types ct ON a.category_type_id = ct.id
-                         LEFT JOIN brands b ON a.brand_id = b.id
-                         LEFT JOIN colors pc ON a.primary_color_id = pc.id
-                         LEFT JOIN statuses st ON a.current_status_id = st.id";
+						 LEFT JOIN categories_types ct ON a.category_type_id = ct.id
+						 LEFT JOIN brands b ON a.brand_id = b.id
+						 LEFT JOIN colors pc ON a.primary_color_id = pc.id " . //{/* Jointure pour la couleur primaire */}
+						 "LEFT JOIN statuses st ON a.current_status_id = st.id";
 
         $whereClauses = [];
         $params = [];
@@ -444,6 +478,13 @@ class Article {
             $whereClauses[] = "a.`condition` = :condition"; // Backticks pour 'condition'
             $params[':condition'] = $filters['condition'];
         }
+
+		// filtre pour base_color_category
+		if (!empty($filters['base_color_category'])) {
+			$whereClauses[] = "pc.base_color_category LIKE :base_color_category";
+			$params[':base_color_category'] = '%' . $filters['base_color_category'] . '%';
+		}
+	
         // Ajoutez d'autres filtres ici (couleur, matière, etc.)
 
         $whereSql = "";
@@ -475,7 +516,23 @@ class Article {
         ];
     }
  
-
+	public function ensureSuitableEventTypeExists(int $articleId, int $eventTypeIdToAdd): void {
+		$sqlCheck = "SELECT COUNT(*) FROM {$this->pivotSuitableEventTypesTable} 
+					 WHERE article_id = :article_id AND event_type_id = :event_type_id";
+		$stmtCheck = $this->dbInstance->query($sqlCheck, [':article_id' => $articleId, ':event_type_id' => $eventTypeIdToAdd]);
+		
+		if ($stmtCheck && $stmtCheck->fetchColumn() == 0) {
+			// L'association n'existe pas, on l'ajoute
+			$sqlInsert = "INSERT INTO {$this->pivotSuitableEventTypesTable} (article_id, event_type_id) 
+						  VALUES (:article_id, :event_type_id)";
+			try {
+				$this->dbInstance->query($sqlInsert, [':article_id' => $articleId, ':event_type_id' => $eventTypeIdToAdd]);
+			} catch (\PDOException $e) {
+				// Gérer les erreurs, par ex. si event_type_id n'est pas valide (ne devrait pas arriver si bien validé avant)
+				error_log("Failed to auto-add suitable event type: " . $e->getMessage());
+			}
+		}
+	}
 
     // update() et delete() viendront après
 }

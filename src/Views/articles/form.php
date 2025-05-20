@@ -359,6 +359,27 @@ $f_selected_associated_ids = $oldFormData['associated_article_ids'] ?? ($selecte
                  <?php echo display_field_error('associated_article_ids', $formErrors); ?>
             </div>
 
+            <hr class="my-4">
+            <h4>Suitable Event Types</h4>
+            <div class="mb-3" style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px;">
+                <?php if (!empty($allEventTypesForForm)): ?>
+                    <?php foreach ($allEventTypesForForm as $et): ?>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="suitable_event_type_ids[]" 
+                                   value="<?php echo Helper::e($et['id']); ?>" 
+                                   id="suitable_et_<?php echo Helper::e($et['id']); ?>"
+                                   <?php echo in_array($et['id'], $selectedSuitableEventTypeIds) ? 'checked' : ''; ?>>
+                            <label class="form-check-label" for="suitable_et_<?php echo Helper::e($et['id']); ?>">
+                                <?php echo Helper::e($et['name']); ?>
+                            </label>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <p class="text-muted">No event types defined to select from.</p>
+                <?php endif; ?>
+                 <?php echo display_field_error('suitable_event_type_ids', $formErrors); // La fonction display_field_error doit exister ?>
+            </div>
+			
         </div> <!-- {/* Fin col-md-4 */} -->
     </div> <!-- {/* Fin row principale */} -->
 
