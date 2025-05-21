@@ -100,11 +100,41 @@ $baseUrl = APP_URL . '/' . trim(str_replace(APP_URL, '', strtok($_SERVER['REQUES
                     <?php endforeach; ?>
                 </select>
             </div>
-            <!-- {/* Ajoutez d'autres filtres : Couleur, Matière, Lieu de stockage, etc. */} -->
+
+            <div class="col-12">
+                <label class="form-label d-block">Suitable for Event Types:</label>
+                <div class="mb-1">
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2" id="checkAllEventTypes">Check All</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="uncheckAllEventTypes">Uncheck All</button>
+                </div>
+                <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 gx-3 gy-2 event-type-filter-group">
+                    <?php foreach ($allEventTypesForFilter ?? [] as $et): ?>
+                        <div class="col">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="filter_suitable_event_type_ids[]" 
+                                       value="<?php echo $et['id']; ?>" 
+                                       id="filter_et_<?php echo $et['id']; ?>"
+                                       <?php echo in_array($et['id'], $filterSuitableEventTypeIds) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="filter_et_<?php echo $et['id']; ?>">
+                                    <?php echo Helper::e($et['name']); ?>
+                                </label>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <div class="col-12 text-center mt-3"> <!-- {/* Centrer les boutons */} -->
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i> Filter Articles</button>
+                <a href="<?php echo APP_URL; ?>/articles" class="btn btn-secondary btn-sm"><i class="bi bi-x-lg"></i> Reset Filters</a>
+            </div>
+
+            <!-- {/* Ajoutez d'autres filtres : Couleur, Matière, Lieu de stockage, etc. */} 
             <div class="col-md-auto align-self-end">
                 <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i> Filter</button>
                 <a href="<?php echo APP_URL; ?>/articles" class="btn btn-secondary btn-sm"><i class="bi bi-x-lg"></i> Reset</a>
-            </div>
+            </div> -->
         </form>
     </div>
 </div>

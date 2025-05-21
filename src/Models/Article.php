@@ -140,8 +140,6 @@ class Article {
         return $stmt ? $stmt->fetchAll() : [];
     }
 
-    // Méthodes create, update, delete, gestion des images, articles associés, article_ref viendront plus tard.
-    // Placeholder pour la génération de référence, à développer
     public function getNextArticleRef(string $categoryTypeCode): string {
         // 1. Trouver le dernier numéro pour ce code de catégorie
         $sql = "SELECT MAX(SUBSTRING(article_ref, " . (strlen($categoryTypeCode) + 1) . ")) AS max_num
@@ -484,7 +482,29 @@ class Article {
 			$whereClauses[] = "pc.base_color_category LIKE :base_color_category";
 			$params[':base_color_category'] = '%' . $filters['base_color_category'] . '%';
 		}
-	
+
+        // Nouveau filtre pour suitable_event_type_ids
+		// --- Solution Robuste avec Placeholders Nommés Dynamiques pour IN ---
+		// On remplace la logique précédente pour les event types avec ceci :
+		if (!empty($filters['suitable_event_type_ids']) && is_array($filters['suitable_event_type_ids'])) {
+			 $eventTypePlaceholders = [];
+			 $i = 0;
+			 foreach ($filters['suitable_event_type_ids'] as $etId) {
+				 $placeholder = ':suitable_et_id_' . $i;
+				 $eventTypePlaceholders[] = $placeholder;
+				 $params[$placeholder] = $etId;
+				 $i++;
+			 }
+			 if (!empty($eventTypePlaceholders)) {
+				 $whereClauses[] = "EXISTS (
+									 SELECT 1 FROM article_suitable_event_types aset 
+									 WHERE aset.article_id = a.id 
+									 AND aset.event_type_id IN (" . implode(',', $eventTypePlaceholders) . ")
+								   )";
+			 }
+		}
+        
+
         // Ajoutez d'autres filtres ici (couleur, matière, etc.)
 
         $whereSql = "";

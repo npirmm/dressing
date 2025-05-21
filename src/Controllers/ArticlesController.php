@@ -68,9 +68,17 @@ class ArticlesController extends BaseController {
             'status_id' => trim($_GET['filter_status_id'] ?? ''),
             'season' => trim($_GET['filter_season'] ?? ''),
             'condition' => trim($_GET['filter_condition'] ?? ''),
-			'base_color_category' => trim($_GET['filter_base_color_category'] ?? '')
+			'base_color_category' => trim($_GET['filter_base_color_category'] ?? ''),
+			'suitable_event_type_ids' => $_GET['filter_suitable_event_type_ids'] ?? [] // Récupéré comme un tableau
 			// Ajoutez d'autres clés de filtre ici
         ];
+
+        // S'assurer que suitable_event_type_ids est bien un tableau d'entiers
+        if (!is_array($filters['suitable_event_type_ids'])) {
+            $filters['suitable_event_type_ids'] = [];
+        }
+        $filters['suitable_event_type_ids'] = array_map('intval', $filters['suitable_event_type_ids']);
+        $filters['suitable_event_type_ids'] = array_filter($filters['suitable_event_type_ids'], fn($id) => $id > 0);
 
         // Pagination
         $itemsPerPage = 15; // Ou configurable
@@ -92,6 +100,7 @@ class ArticlesController extends BaseController {
         $allStatusesForFilter = $this->statusModel->getAll('id', 'ASC'); // Trié par ID comme demandé
         $allSeasonOptionsForFilter = ['Printemps', 'Été', 'Automne', 'Hiver', 'Toutes saisons', 'Entre-saisons']; // Depuis config ou modèle Article
         $allConditionOptionsForFilter = ['neuf', 'excellent', 'bon état', 'médiocre', 'à réparer/retoucher'];
+		$allEventTypesForFilter = $this->eventTypeModel->getAll('name', 'ASC');
 
 
         $this->renderView('articles/index', [
@@ -111,6 +120,7 @@ class ArticlesController extends BaseController {
             'filterSeason' => $filters['season'],
             'filterCondition' => $filters['condition'],
 			'filterBaseColorCategory' => $filters['base_color_category'],
+            'filterSuitableEventTypeIds' => $filters['suitable_event_type_ids'], // Pour pré-cocher
 
             // Données pour les selects des filtres
             'allCategoriesForFilter' => $allCategoriesForFilter,
@@ -118,6 +128,7 @@ class ArticlesController extends BaseController {
             'allStatusesForFilter' => $allStatusesForFilter,
             'allSeasonOptionsForFilter' => $allSeasonOptionsForFilter,
             'allConditionOptionsForFilter' => $allConditionOptionsForFilter,
+			'allEventTypesForFilter' => $allEventTypesForFilter, // Pour générer les checkboxes
         ]);
     }
 
